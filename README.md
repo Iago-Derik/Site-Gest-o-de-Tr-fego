@@ -139,6 +139,43 @@ Na seção `Trabalho > Relatórios e dashboards`, informe o ID da propriedade e 
 
 ---
 
+## 🌐 Como Publicar Online e Servir Vídeos Remotamente
+
+Para disponibilizar o Video Hub online e assistir às aulas de qualquer lugar:
+
+1. **Hospedagem da Aplicação Node.js:**
+   - Faça o deploy do projeto em serviços como **Render, Railway, Fly.io, Vercel ou uma VPS (DigitalOcean / AWS / Hetzner)**.
+   - Configure as variáveis de ambiente em produção (`PORT`, `NODE_ENV=production`, `META_APP_ID`, `META_APP_SECRET`, `GA4_PROPERTY_ID`, etc.).
+
+2. **Hospedagem dos Vídeos em Nuvem / CDN (S3 ou Cloudflare R2):**
+   - Faça o upload da pasta de vídeos para um bucket como **Cloudflare R2, AWS S3, BunnyCDN ou DigitalOcean Spaces**.
+   - No modal de Configurações (ou no arquivo `config.json`), defina o campo `remoteVideosUrl`:
+     ```json
+     {
+       "remoteVideosUrl": "https://meustorage.r2.cloudflarestorage.com/cursos"
+     }
+     ```
+   - O player passará a buscar os vídeos diretamente da URL remota com streaming rápido via CDN/Range Requests.
+
+---
+
+## 📊 Gerador de Dashboards Visuais (Meta Ads & GA4)
+
+Na aba **Trabalho > Relatórios e dashboards**, você conta com um gerador de dashboards analíticos em tempo real:
+
+1. **Meta Ads Dashboard:**
+   - Selecione a conta de anúncios (`act_<ID>`), o nível de detalhamento (**Campanha**, **Conjunto de Anúncios**, **Anúncio** ou **Conta**) e o período.
+   - O dashboard exibe KPIs de **Investimento, Impressões, Alcance, CTR, CPM, CPC, ROAS, Leads e Conversas**, além de gráficos de barras para análise por campanha.
+
+2. **Google Analytics 4 (GA4) Dashboard:**
+   - Informe o ID da propriedade GA4 e o período.
+   - O dashboard traz métricas de **Sessões, Conversões Totais, Taxa de Conversão, Usuários Totais/Novos/Ativos, Pageviews e Engajamento**, com detalhamento por grupo de canais de aquisição.
+
+3. **Exportação / Relatórios para Clientes:**
+   - Botão **Imprimir / PDF** para gerar relatórios visuais limpos para envio aos clientes.
+
+---
+
 ## 📁 Como Adicionar Seus Vídeos
 
 Basta colocar seus vídeos dentro da pasta `videos/` (ou alterar o caminho no arquivo `config.json` ou pelo botão de configurações na interface).

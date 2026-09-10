@@ -780,33 +780,55 @@
             <p>Selecione o cliente, período e formato para visualizar um painel personalizado.</p>
           </div><button class="btn btn-primary btn-sm" id="btnNewReport">+ Novo relatório</button>
         </div>
-        <div class="meta-import-panel" id="metaImportPanel">
-          <div><span class="eyebrow-label">FONTE DE DADOS</span>
-            <h3>Importar insights do Meta Ads</h3>
-            <p>O token permanece protegido no backend. Informe apenas o ID da conta.</p>
+        <div class="dashboard-generator-panel">
+          <div class="meta-import-panel" id="metaImportPanel">
+            <div><span class="eyebrow-label">GERADOR DE DASHBOARD · META ADS</span>
+              <h3>Gerar Dashboard de Visualização do Meta Ads</h3>
+              <p>O token permanece protegido no backend. Informe a conta, nível e período desejado.</p>
+            </div>
+            <p class="meta-import-status" id="metaConnectionStatus"></p>
+            <div class="meta-import-controls">
+              <label>Conta de anúncios<input id="metaAccountId" placeholder="act_1141685413198333"></label>
+              <label>Nível
+                <select id="metaQueryLevel">
+                  <option value="campaign" selected>Campanha</option>
+                  <option value="adset">Conjunto de Anúncios</option>
+                  <option value="ad">Anúncio</option>
+                  <option value="account">Conta</option>
+                </select>
+              </label>
+              <label>Período
+                <select id="metaDatePreset">
+                  <option value="last_7d">Últimos 7 dias</option>
+                  <option value="last_14d">Últimos 14 dias</option>
+                  <option value="last_30d" selected>Últimos 30 dias</option>
+                  <option value="this_month">Este mês</option>
+                </select>
+              </label>
+              <button class="btn btn-primary btn-sm" id="btnImportMeta">Gerar Dashboard Meta</button>
+            </div>
+            <p class="meta-import-status" id="metaImportStatus"></p>
           </div>
-          <p class="meta-import-status" id="metaConnectionStatus"></p>
-          <div class="meta-import-controls"><label>Conta de anúncios<input id="metaAccountId" placeholder="act_1141685413198333"></label><label>Período<select id="metaDatePreset">
-                <option value="last_7d">Últimos 7 dias</option>
-                <option value="last_14d">Últimos 14 dias</option>
-                <option value="last_30d" selected>Últimos 30 dias</option>
-                <option value="this_month">Este mês</option>
-                <option value="last_month">Mês passado</option>
-              </select></label><button class="btn btn-primary btn-sm" id="btnImportMeta">Buscar dados</button></div>
-          <p class="meta-import-status" id="metaImportStatus"></p>
-        </div>
-        <div class="ga-import-panel" id="gaImportPanel">
-          <div><span class="eyebrow-label">FONTE DE DADOS</span>
-            <h3>Importar dados do Google Analytics 4</h3>
-            <p>Use o ID da propriedade GA4. A conta de serviço permanece no backend.</p>
+
+          <div class="ga-import-panel" id="gaImportPanel">
+            <div><span class="eyebrow-label">GERADOR DE DASHBOARD · GOOGLE ANALYTICS 4</span>
+              <h3>Gerar Dashboard de Visualização do GA4</h3>
+              <p>Informe o ID da propriedade GA4 para analisar usuários, sessões, engajamento e canais.</p>
+            </div>
+            <div class="meta-import-controls">
+              <label>Propriedade GA4<input id="gaPropertyId" value="553354770" placeholder="123456789"></label>
+              <label>Período
+                <select id="gaDatePreset">
+                  <option value="last_7d" selected>Últimos 7 dias</option>
+                  <option value="last_14d">Últimos 14 dias</option>
+                  <option value="last_30d">Últimos 30 dias</option>
+                  <option value="this_month">Este mês</option>
+                </select>
+              </label>
+              <button class="btn btn-primary btn-sm" id="btnImportGa">Gerar Dashboard GA4</button>
+            </div>
+            <p class="meta-import-status" id="gaImportStatus"></p>
           </div>
-          <div class="meta-import-controls"><label>Propriedade GA4<input id="gaPropertyId" value="553354770" placeholder="123456789"></label><label>Período<select id="gaDatePreset">
-                <option value="last_7d" selected>Últimos 7 dias</option>
-                <option value="last_14d">Últimos 14 dias</option>
-                <option value="last_30d">Últimos 30 dias</option>
-                <option value="this_month">Este mês</option>
-              </select></label><button class="btn btn-primary btn-sm" id="btnImportGa">Buscar dados</button></div>
-          <p class="meta-import-status" id="gaImportStatus"></p>
         </div>
         <div id="workReportsContent"></div>
       </section>
@@ -829,6 +851,15 @@
             <button class="btn btn-secondary btn-sm" id="btnSaveVideosDir">Salvar</button>
           </div>
           <span class="form-hint" id="cfgAbsDirHint">Caminho: D:\Vídeos telegram\Curso Gestão de tráfego</span>
+        </div>
+
+        <div class="form-group">
+          <label for="cfgRemoteVideosUrl">URL de Servidor/CDN Remoto para Vídeos (Opcional - Hospedagem Online):</label>
+          <div class="input-with-btn">
+            <input type="text" id="cfgRemoteVideosUrl" placeholder="Ex: https://meustorage.r2.cloudflarestorage.com/cursos">
+            <button class="btn btn-secondary btn-sm" id="btnSaveRemoteVideosUrl">Salvar URL</button>
+          </div>
+          <span class="form-hint">Se preenchido, os vídeos serão carregados diretamente desta URL base online em vez de servidos pelo backend local.</span>
         </div>
 
         <div class="form-group">

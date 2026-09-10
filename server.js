@@ -47,6 +47,7 @@ const WORKSPACE_FILE = path.join(DATA_DIR, "workspace.json");
 let config = {
   port: 3000,
   videosDir: "./videos",
+  remoteVideosUrl: process.env.REMOTE_VIDEOS_URL || "",
   allowedExtensions: [".mp4", ".mkv", ".webm", ".avi", ".mov", ".m4v"],
 };
 
@@ -354,57 +355,61 @@ function scanDirectory(dir, baseDir = dir) {
   let results = [];
   if (!fs.existsSync(dir)) return results;
 
-  const entries = fs.readdirSync(dir, { withFileTypes: true });
-  for (const entry of entries) {
-    const fullPath = path.join(dir, entry.name);
-    if (entry.isDirectory()) {
-      results = results.concat(scanDirectory(fullPath, baseDir));
-    } else if (entry.isFile()) {
-      const ext = path.extname(entry.name).toLowerCase();
-      if (config.allowedExtensions.includes(ext)) {
-        const relPath = path.relative(baseDir, fullPath).replace(/\\/g, "/");
-        const parts = relPath.split("/");
+  try {
+    const entries = fs.readdirSync(dir, { withFileTypes: true });
+    for (const entry of entries) {
+      const fullPath = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        results = results.concat(scanDirectory(fullPath, baseDir));
+      } else if (entry.isFile()) {
+        const ext = path.extname(entry.name).toLowerCase();
+        if (config.allowedExtensions.includes(ext)) {
+          const relPath = path.relative(baseDir, fullPath).replace(/\\/g, "/");
+          const parts = relPath.split("/");
 
-        let courseName = "Curso Principal";
-        let moduleName = "Módulo 1";
-        let lessonFileName = entry.name;
+          let courseName = "Curso Principal";
+          let moduleName = "Módulo 1";
+          let lessonFileName = entry.name;
 
-        if (parts.length >= 3) {
-          courseName = parts[0];
-          moduleName = parts[1];
-          lessonFileName = parts.slice(2).join(" - ");
-        } else if (parts.length === 2) {
-          courseName = "Curso Principal";
-          moduleName = parts[0];
-          lessonFileName = parts[1];
-        } else {
-          courseName = "Curso Principal";
-          moduleName = "Aulas Gerais";
-          lessonFileName = parts[0];
+          if (parts.length >= 3) {
+            courseName = parts[0];
+            moduleName = parts[1];
+            lessonFileName = parts.slice(2).join(" - ");
+          } else if (parts.length === 2) {
+            courseName = "Curso Principal";
+            moduleName = parts[0];
+            lessonFileName = parts[1];
+          } else {
+            courseName = "Curso Principal";
+            moduleName = "Aulas Gerais";
+            lessonFileName = parts[0];
+          }
+
+          const id = relPath;
+          const cleanedTitle = cleanTitle(lessonFileName);
+          const cleanedModule = cleanModuleTitle(moduleName);
+          const cleanedCourse = cleanTitle(courseName);
+
+          results.push({
+            id,
+            fullPath,
+            fileName: entry.name,
+            rawTitle: lessonFileName.replace(/\.[a-zA-Z0-9]+$/, ""),
+            cleanTitle: cleanedTitle,
+            course: courseName,
+            cleanCourse: cleanedCourse,
+            module: moduleName,
+            cleanModule: cleanedModule,
+            ext,
+            size: fs.statSync(fullPath).size,
+            mtime: fs.statSync(fullPath).mtimeMs,
+            sortKey: getSortKey(relPath),
+          });
         }
-
-        const id = relPath;
-        const cleanedTitle = cleanTitle(lessonFileName);
-        const cleanedModule = cleanModuleTitle(moduleName);
-        const cleanedCourse = cleanTitle(courseName);
-
-        results.push({
-          id,
-          fullPath,
-          fileName: entry.name,
-          rawTitle: lessonFileName.replace(/\.[a-zA-Z0-9]+$/, ""),
-          cleanTitle: cleanedTitle,
-          course: courseName,
-          cleanCourse: cleanedCourse,
-          module: moduleName,
-          cleanModule: cleanedModule,
-          ext,
-          size: fs.statSync(fullPath).size,
-          mtime: fs.statSync(fullPath).mtimeMs,
-          sortKey: getSortKey(relPath),
-        });
       }
     }
+  } catch (e) {
+    console.error("Erro ao escanear diretório:", e.message);
   }
   return results;
 }
@@ -460,6 +465,12 @@ function getCoursesData() {
       Array.isArray(favoritesData) && favoritesData.includes(video.id);
     const videoNotes = (notesData || []).filter((n) => n.videoId === video.id);
 
+    // Se houver um prefixo/URL base remoto configurado (CDN, S3, R2, etc.), usa a URL remota
+    const videoUrl =
+      config.remoteVideosUrl && config.remoteVideosUrl.trim() !== ""
+        ? `${config.remoteVideosUrl.replace(/\/$/, "")}/${video.id}`
+        : `/api/video?id=${encodeURIComponent(video.id)}`;
+
     mData.videos.push({
       id: video.id,
       fileName: video.fileName,
@@ -480,7 +491,7 @@ function getCoursesData() {
       isCompleted,
       isFavorite,
       notesCount: videoNotes.length,
-      videoUrl: `/api/video?id=${encodeURIComponent(video.id)}`,
+      videoUrl,
       thumbUrl: `/api/thumbnail?id=${encodeURIComponent(video.id)}`,
     });
   }
@@ -1288,28 +1299,36 @@ const server = http.createServer(async (req, res) => {
     }
 
     const allowedFields = new Set([
+      "account_id",
       "account_name",
       "campaign_name",
       "campaign_id",
       "adset_name",
+      "adset_id",
       "ad_name",
+      "ad_id",
       "date_start",
       "date_stop",
       "impressions",
       "reach",
       "frequency",
       "clicks",
+      "unique_clicks",
       "spend",
       "cpm",
       "cpc",
       "ctr",
+      "cost_per_unique_click",
       "actions",
       "action_values",
+      "cost_per_action_type",
       "purchase_roas",
+      "outbound_clicks",
+      "conversions",
     ]);
     const requestedFields = String(
       parsedUrl.query.fields ||
-        "campaign_name,impressions,reach,clicks,spend,cpm,cpc,ctr,actions",
+        "campaign_name,impressions,reach,frequency,clicks,spend,cpm,cpc,ctr,actions,action_values,purchase_roas,cost_per_action_type",
     )
       .split(",")
       .filter((field) => allowedFields.has(field));
@@ -1375,16 +1394,22 @@ const server = http.createServer(async (req, res) => {
         { name: "sessions" },
         { name: "conversions" },
         { name: "activeUsers" },
-        { name: "screenPageViews" },
-        { name: "engagementRate" },
         { name: "totalUsers" },
         { name: "newUsers" },
+        { name: "screenPageViews" },
+        { name: "engagementRate" },
         { name: "bounceRate" },
+        { name: "userEngagementDuration" },
+        { name: "averageSessionDuration" },
+        { name: "eventCount" },
       ],
       dimensions: [
         { name: "date" },
         { name: "sessionDefaultChannelGroup" },
+        { name: "sessionSourceMedium" },
+        { name: "sessionCampaignName" },
         { name: "country" },
+        { name: "city" },
       ],
     };
     try {
@@ -1467,8 +1492,11 @@ const server = http.createServer(async (req, res) => {
     }
     if (method === "POST") {
       parseJSONBody((err, data) => {
-        if (data.videosDir) {
+        if (typeof data.videosDir === "string") {
           config.videosDir = data.videosDir;
+        }
+        if (typeof data.remoteVideosUrl === "string") {
+          config.remoteVideosUrl = data.remoteVideosUrl.trim();
         }
         if (data.port) {
           config.port = parseInt(data.port, 10) || config.port;
