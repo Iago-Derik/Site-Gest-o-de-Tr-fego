@@ -1,0 +1,89 @@
+{
+  "clients": [
+    {
+      "name": "Velha Manna",
+      "business": "Tricos & Amigurumis",
+      "contact": "",
+      "website": "https://velhamanna.vercel.app/",
+      "instagram": "@velha.manna",
+      "city": "Mogi das Cruzes",
+      "businessDetails": "",
+      "goals": "",
+      "studyTags": "Meta Ads, criativos, campanhas, conjunto de anúncios, GTM, GA4",
+      "audienceAgeMin": "24",
+      "audienceAgeMax": "45",
+      "audienceGender": "Mulheres",
+      "audienceSegmentation": "Mães de crianças de 1 a 5 anos, Mães de Bebês, Trico, Crochê, Amigurumis, Tricotins, Costura, Bordado, Design de intereiores ",
+      "primaryAudience": "0",
+      "objectiveName": "Seguidores e interação",
+      "primaryObjective": "0",
+      "budgetMonth": "2026-09",
+      "budgetAmount": "100",
+      "id": "client_1788996627575_qxnjj",
+      "audiences": [
+        {
+          "ageMin": 24,
+          "ageMax": 45,
+          "gender": "Mulheres",
+          "segmentation": "Mães de crianças de 1 a 5 anos, Mães de Bebês, Trico, Crochê, Amigurumis, Tricotins, Costura, Bordado, Design de intereiores ",
+          "primary": true
+        }
+      ],
+      "objectives": [
+        {
+          "name": "Conversas no WhatsApp",
+          "primary": true
+        },
+        {
+          "name": "Acessos e vendas no site",
+          "primary": false
+        },
+        {
+          "name": "Seguidores e interação",
+          "primary": false
+        }
+      ],
+      "budgets": [
+        {
+          "month": "2026-09",
+          "amount": 100
+        }
+      ],
+      "updatedAt": "2026-09-10T00:10:03.580Z",
+      "createdAt": "2026-09-09T23:30:27.575Z"
+    }
+  ],
+  "campaigns": [
+    {
+      "name": "Campanha de kits",
+      "platform": "Meta Ads",
+      "status": "Planejamento",
+      "period": "",
+      "spend": 350,
+      "impressions": 0,
+      "clicks": 0,
+      "leads": 22,
+      "conversions": 8,
+      "costPerResult": 0,
+      "notes": "",
+      "clientId": "client_1788996627575_qxnjj",
+      "id": "campaign_1788996632344_yseg3",
+      "updatedAt": "2026-09-09T23:30:32.344Z",
+      "createdAt": "2026-09-09T23:30:27.575Z"
+    }
+  ],
+  "documents": [
+    {
+      "name": "Plano Operacional e de Gestao de Trafego",
+      "kind": "Proposta comercial",
+      "status": "Aprovado",
+      "url": "C:\\Users\\iagod\\Downloads\\Apresentacoes enviadas\\Velha Manna\\Plano Operacional e de Gestao de Trafego.pptx",
+      "content": "Plano Operacional personalizado para a cliente do negocio Velha Manna",
+      "clientId": "client_1788996627575_qxnjj",
+      "id": "document_1788997185494_j8q34",
+      "updatedAt": "2026-09-09T23:39:45.494Z",
+      "createdAt": "2026-09-09T23:39:45.494Z"
+    }
+  ],
+  "reports": []
+}

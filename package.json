@@ -1,0 +1,22 @@
+{
+  "name": "video-hub",
+  "version": "2.0.0",
+  "description": "Plataforma moderna e intuitiva para gerenciar e assistir aulas locais com player dedicado, anotações, histórico e visual tech escuro.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "keywords": [
+    "video-player",
+    "course-hub",
+    "local-courses",
+    "video-hub",
+    "learning"
+  ],
+  "author": "Iago Derik",
+  "license": "MIT",
+  "dependencies": {
+    "google-auth-library": "^11.0.2"
+  }
+}

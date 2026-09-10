@@ -1,0 +1,878 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="dark">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Video Hub • Local Pro</title>
+  <link rel="stylesheet" href="/styles.css?v=20260910b">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+</head>
+
+<body class="theme-dark">
+
+  <!-- TOP NAVIGATION BAR -->
+  <header class="app-header">
+    <div class="header-left">
+      <div class="brand" id="btnLogoHome">
+        <div class="brand-icon">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="5 3 19 12 5 21 5 3"></polygon>
+          </svg>
+          <span class="brand-pulse"></span>
+        </div>
+        <div class="brand-text">
+          <span class="brand-name">VIDEO HUB</span>
+          <span class="brand-badge">PRO 2.0</span>
+        </div>
+      </div>
+
+      <!-- Course Selector (Dropdown) -->
+      <div class="course-selector-container" id="courseSelectorWrapper">
+        <div class="course-selector-btn" id="courseSelectorBtn">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+          </svg>
+          <span id="currentCourseLabel">Carregando cursos...</span>
+          <svg class="chevron-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="6 9 12 15 18 9"></polyline>
+          </svg>
+        </div>
+        <div class="course-dropdown-menu" id="courseDropdownMenu"></div>
+      </div>
+    </div>
+
+    <!-- Center Search -->
+    <div class="header-center">
+      <div class="search-box">
+        <svg class="search-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="11" cy="11" r="8"></circle>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        </svg>
+        <input type="text" id="globalSearchInput" placeholder="Buscar aulas, módulos ou anotações (Ctrl + K)..." autocomplete="off">
+        <button class="search-clear-btn" id="btnClearSearch" title="Limpar busca">&times;</button>
+        <kbd class="search-shortcut">⌘K</kbd>
+      </div>
+    </div>
+
+    <!-- Header Right Actions & Progress -->
+    <div class="header-right">
+      <!-- Course Overall Progress Badge -->
+      <div class="course-progress-pill" id="headerCourseProgress" title="Progresso geral do curso">
+        <div class="progress-info">
+          <span class="progress-label">Progresso</span>
+          <span class="progress-value" id="headerProgressPercent">0%</span>
+        </div>
+        <div class="progress-bar-track">
+          <div class="progress-bar-fill" id="headerProgressBar" style="width: 0%"></div>
+        </div>
+        <span class="progress-count" id="headerProgressCount">0/0</span>
+      </div>
+
+      <!-- Navigation tabs buttons -->
+      <nav class="nav-links">
+        <button class="nav-btn active" id="navBtnHome" title="Página Inicial">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+            <polyline points="9 22 9 12 15 12 15 22"></polyline>
+          </svg>
+          <span>Home</span>
+        </button>
+        <button class="nav-btn" id="navBtnCourses" title="Todos os Cursos e Módulos">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="7" height="7"></rect>
+            <rect x="14" y="3" width="7" height="7"></rect>
+            <rect x="14" y="14" width="7" height="7"></rect>
+            <rect x="3" y="14" width="7" height="7"></rect>
+          </svg>
+          <span>Cursos</span>
+        </button>
+        <button class="nav-btn" id="navBtnPlayer" title="Player de Aula">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"></rect>
+            <line x1="7" y1="2" x2="7" y2="22"></line>
+            <line x1="17" y1="2" x2="17" y2="22"></line>
+            <line x1="2" y1="12" x2="22" y2="12"></line>
+            <line x1="2" y1="7" x2="7" y2="7"></line>
+            <line x1="2" y1="17" x2="7" y2="17"></line>
+            <line x1="17" y1="17" x2="22" y2="17"></line>
+            <line x1="17" y1="7" x2="22" y2="7"></line>
+          </svg>
+          <span>Player</span>
+        </button>
+        <button class="nav-btn" id="navBtnNotes" title="Minhas Anotações">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+            <polyline points="14 2 14 8 20 8"></polyline>
+            <line x1="16" y1="13" x2="8" y2="13"></line>
+            <line x1="16" y1="17" x2="8" y2="17"></line>
+          </svg>
+          <span>Anotações</span>
+        </button>
+        <button class="nav-btn" id="navBtnFavorites" title="Aulas Favoritas">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
+          </svg>
+          <span>Favoritos</span>
+        </button>
+        <button class="nav-btn" id="navBtnWork" title="Área profissional">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="7" width="18" height="13" rx="2"></rect>
+            <path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 12h18M10 12v2h4v-2"></path>
+          </svg>
+          <span>Trabalho</span>
+        </button>
+      </nav>
+
+      <!-- System Buttons -->
+      <div class="header-system-actions">
+        <button class="action-circle-btn" id="btnRescan" title="Reescanear pastas de vídeos">
+          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="23 4 23 10 17 10"></polyline>
+            <polyline points="1 20 1 14 7 14"></polyline>
+            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+          </svg>
+        </button>
+        <button class="action-circle-btn" id="btnSettings" title="Configurações e Diretório">
+          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+          </svg>
+        </button>
+        <button class="action-circle-btn" id="btnShortcuts" title="Atalhos de Teclado">
+          <span style="font-weight: 700; font-size: 13px;">?</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN WRAPPER -->
+  <main class="app-main" id="mainContainer">
+
+    <!-- ================================================================= -->
+    <!-- 1. HOME / DASHBOARD VIEW -->
+    <!-- ================================================================= -->
+    <section class="view-section active" id="viewHome">
+
+      <!-- HERO: CONTINUE WATCHING -->
+      <div class="continue-watching-hero" id="continueHeroContainer">
+        <div class="hero-glow-ambient"></div>
+        <div class="hero-content">
+          <div class="hero-badge">
+            <span class="pulse-dot"></span>
+            <span>CONTINUAR ASSISTINDO</span>
+          </div>
+          <div class="hero-course-module" id="heroCourseModule">Curso > Módulo</div>
+          <h1 class="hero-title" id="heroLessonTitle">Nenhuma aula iniciada recentemente</h1>
+          <p class="hero-subtitle" id="heroLessonSubtitle">Selecione uma aula da trilha abaixo para começar sua jornada.</p>
+
+          <div class="hero-progress-wrapper" id="heroProgressWrapper" style="display: none;">
+            <div class="hero-progress-bar">
+              <div class="hero-progress-fill" id="heroProgressFill" style="width: 0%"></div>
+            </div>
+            <div class="hero-progress-meta">
+              <span id="heroTimeLeft">Restam 00:00</span>
+              <span id="heroPercent">0% concluído</span>
+            </div>
+          </div>
+
+          <div class="hero-actions" id="heroActions">
+            <button class="btn btn-primary" id="btnHeroResume">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                <polygon points="5 3 19 12 5 21 5 3"></polygon>
+              </svg>
+              <span id="btnHeroResumeText">Continuar Aula</span>
+            </button>
+            <button class="btn btn-secondary" id="btnHeroMarkCompleted">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="20 6 9 17 4 12"></polyline>
+              </svg>
+              <span>Concluir Aula</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="hero-preview-card" id="heroPreviewCard">
+          <div class="hero-thumb-wrapper" id="heroThumbWrapper">
+            <img class="hero-thumb-img" id="heroThumbImg" src="" alt="Thumbnail" />
+            <div class="hero-thumb-overlay">
+              <div class="play-pulse-btn">
+                <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+                  <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                </svg>
+              </div>
+            </div>
+            <span class="hero-duration-tag" id="heroDurationTag">--:--</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- STATS OVERVIEW CARDS -->
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-icon icon-cyan">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="23 7 16 12 23 17 23 7"></polygon>
+              <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
+            </svg>
+          </div>
+          <div class="stat-content">
+            <span class="stat-label">Total de Aulas</span>
+            <span class="stat-number" id="statTotalVideos">0</span>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-icon icon-green">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+              <polyline points="22 4 12 14.01 9 11.01"></polyline>
+            </svg>
+          </div>
+          <div class="stat-content">
+            <span class="stat-label">Aulas Concluídas</span>
+            <span class="stat-number" id="statCompletedVideos">0</span>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-icon icon-purple">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"></circle>
+              <polyline points="12 6 12 12 16 14"></polyline>
+            </svg>
+          </div>
+          <div class="stat-content">
+            <span class="stat-label">Em Andamento</span>
+            <span class="stat-number" id="statInProgressVideos">0</span>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-icon icon-amber">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+              <line x1="16" y1="13" x2="8" y2="13"></line>
+              <line x1="16" y1="17" x2="8" y2="17"></line>
+            </svg>
+          </div>
+          <div class="stat-content">
+            <span class="stat-label">Anotações Criadas</span>
+            <span class="stat-number" id="statTotalNotes">0</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="home-content-layout">
+        <aside class="home-topics-sidebar" aria-label="Temas do curso">
+          <div class="home-topics-heading">
+            <span class="eyebrow-label">NAVEGAR POR</span>
+            <h2>Temas</h2>
+          </div>
+          <div class="home-topics-list" id="homeTopicsList"></div>
+        </aside>
+
+        <div class="home-content-main">
+
+          <!-- IN-PROGRESS SHELF -->
+          <div class="section-shelf" id="shelfInProgress">
+            <div class="shelf-header">
+              <div class="shelf-title-box">
+                <h2 class="shelf-title">Aulas em Andamento</h2>
+                <span class="shelf-count-badge" id="inProgressCountBadge">0</span>
+              </div>
+              <div class="shelf-filters" id="homeFilterTabs">
+                <button class="pill-btn active" data-filter="all">Todas as Aulas</button>
+                <button class="pill-btn" data-filter="in_progress">Em Andamento</button>
+                <button class="pill-btn" data-filter="completed">Concluídas</button>
+                <button class="pill-btn" data-filter="unwatched">Não Assistidas</button>
+                <button class="pill-btn" data-filter="favorites">Favoritas</button>
+              </div>
+            </div>
+            <div class="videos-grid" id="homeVideosGrid"></div>
+          </div>
+
+          <!-- COURSE CURRICULUM MODULE TRACK (UNRESTRICTED SCROLLING) -->
+          <div class="section-shelf" id="shelfCurriculum">
+            <div class="shelf-header">
+              <div class="shelf-title-box">
+                <h2 class="shelf-title">Trilha do Curso Atual</h2>
+                <span class="shelf-subtitle" id="curriculumSubtitle">Módulos e aulas organizadas em ordem sequencial</span>
+              </div>
+              <div class="curriculum-actions">
+                <button class="btn btn-sm btn-ghost" id="btnExpandAllModules">Expandir Todos</button>
+                <button class="btn btn-sm btn-ghost" id="btnCollapseAllModules">Recolher Todos</button>
+              </div>
+            </div>
+            <div class="curriculum-track" id="curriculumTrackContainer"></div>
+          </div>
+
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ================================================================= -->
+    <!-- 2. ALL COURSES & MODULES VIEW (ABA DE TODOS OS CURSOS) -->
+    <!-- ================================================================= -->
+    <section class="view-section" id="viewCourses">
+      <div class="shelf-header">
+        <div class="shelf-title-box">
+          <h1 class="shelf-title">Todos os Cursos</h1>
+          <span class="shelf-subtitle">Visualize todos os cursos disponíveis e a lista completa de módulos e aulas</span>
+        </div>
+      </div>
+      <div class="all-courses-container" id="allCoursesContainer"></div>
+    </section>
+
+    <!-- ================================================================= -->
+    <!-- 3. DEDICATED PLAYER / CLASSROOM VIEW -->
+    <!-- ================================================================= -->
+    <section class="view-section" id="viewPlayer">
+      <div class="player-layout" id="playerLayout">
+
+        <!-- MAIN VIDEO COLUMN -->
+        <div class="player-main-column">
+          <!-- Top Video Breadcrumb / Quick Back -->
+          <div class="player-top-bar">
+            <button class="btn btn-sm btn-ghost" id="btnBackToHome">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="19" y1="12" x2="5" y2="12"></line>
+                <polyline points="12 19 5 12 12 5"></polyline>
+              </svg>
+              <span>Voltar para a Home</span>
+            </button>
+            <div class="player-breadcrumbs" id="playerBreadcrumbs">
+              <span class="bc-course" id="bcCourse">Curso</span>
+              <span class="bc-separator">/</span>
+              <span class="bc-module" id="bcModule">Módulo</span>
+            </div>
+            <div class="player-top-actions">
+              <button class="btn btn-sm btn-ghost" id="btnToggleTheater" title="Modo Cinema (T)">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="2" y="4" width="20" height="16" rx="2"></rect>
+                  <line x1="2" y1="9" x2="22" y2="9"></line>
+                </svg>
+                <span class="hide-mobile">Cinema</span>
+              </button>
+              <button class="btn btn-sm btn-ghost" id="btnToggleAmbient" title="Iluminação Ambiente (Glow)">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="5"></circle>
+                  <line x1="12" y1="1" x2="12" y2="3"></line>
+                  <line x1="12" y1="21" x2="12" y2="23"></line>
+                  <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                  <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                  <line x1="1" y1="12" x2="3" y2="12"></line>
+                  <line x1="21" y1="12" x2="23" y2="12"></line>
+                  <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                  <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                </svg>
+                <span class="hide-mobile">Glow</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Video Player Container with Click Surface -->
+          <div class="video-container" id="videoContainer">
+            <!-- Ambilight Canvas Glow -->
+            <canvas id="ambilightCanvas" class="ambilight-canvas"></canvas>
+
+            <video id="mainVideoPlayer" preload="metadata" playsinline></video>
+
+            <!-- Dedicated Transparent Click Surface for Instant Play/Pause -->
+            <div class="video-click-surface" id="videoClickSurface" title="Clique para Pausar ou Reproduzir (Duplo clique para Tela Cheia)"></div>
+
+            <!-- Play/Pause Visual Feedback Ripple Icon -->
+            <div class="video-action-feedback" id="videoActionFeedback">
+              <div class="feedback-icon" id="feedbackIcon">
+                <svg viewBox="0 0 24 24" width="34" height="34" fill="currentColor">
+                  <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                </svg>
+              </div>
+            </div>
+
+            <!-- Preload Video Thumbnail Card Overlay (Shown before play starts) -->
+            <div class="video-preload-overlay" id="videoPreloadOverlay">
+              <img class="preload-thumb-img" id="preloadThumbImg" src="" alt="Thumbnail" />
+              <div class="preload-overlay-content">
+                <button class="big-play-btn" id="btnBigPlay">
+                  <svg viewBox="0 0 24 24" width="36" height="36" fill="currentColor">
+                    <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                  </svg>
+                </button>
+                <span class="preload-lesson-title" id="preloadLessonTitle">Título da Aula</span>
+              </div>
+            </div>
+
+            <!-- Autoplay Next Lesson Overlay (Appears on video end) -->
+            <div class="autoplay-overlay" id="autoplayOverlay" style="display: none;">
+              <div class="autoplay-card">
+                <span class="autoplay-badge">Próxima Aula em <b id="autoplayCountdown">5</b>s</span>
+                <h3 class="autoplay-next-title" id="autoplayNextTitle">Nome da Próxima Aula</h3>
+                <div class="autoplay-actions">
+                  <button class="btn btn-primary btn-sm" id="btnAutoplayNow">Tocar Agora ▶</button>
+                  <button class="btn btn-secondary btn-sm" id="btnAutoplayCancel">Cancelar</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Custom Controls Overlay -->
+            <div class="video-controls-overlay" id="videoControls">
+              <!-- Scrub Progress Bar -->
+              <div class="scrub-container" id="scrubContainer">
+                <div class="scrub-hover-time" id="scrubHoverTime">00:00</div>
+                <div class="scrub-track">
+                  <div class="scrub-loaded" id="scrubLoaded"></div>
+                  <div class="scrub-progress" id="scrubProgress"></div>
+                  <div class="scrub-handle" id="scrubHandle"></div>
+                </div>
+              </div>
+
+              <!-- Controls Bottom Row -->
+              <div class="controls-row">
+                <div class="controls-group-left">
+                  <button class="control-btn" id="ctrlPlayPause" title="Play/Pause (Espaço ou Clique no Vídeo)">
+                    <svg class="icon-play" viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                      <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                    </svg>
+                    <svg class="icon-pause" viewBox="0 0 24 24" width="20" height="20" fill="currentColor" style="display: none;">
+                      <rect x="6" y="4" width="4" height="16"></rect>
+                      <rect x="14" y="4" width="4" height="16"></rect>
+                    </svg>
+                  </button>
+
+                  <button class="control-btn" id="ctrlRewind10" title="Voltar 10s (←)">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M1 4v6h6"></path>
+                      <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
+                      <text x="12" y="15" fill="currentColor" font-size="8" font-weight="700" text-anchor="middle">10</text>
+                    </svg>
+                  </button>
+
+                  <button class="control-btn" id="ctrlForward10" title="Avançar 10s (→)">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M23 4v6h-6"></path>
+                      <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+                      <text x="12" y="15" fill="currentColor" font-size="8" font-weight="700" text-anchor="middle">10</text>
+                    </svg>
+                  </button>
+
+                  <!-- Volume -->
+                  <div class="volume-container">
+                    <button class="control-btn" id="ctrlMute" title="Mudo (M)">
+                      <svg class="icon-vol-high" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                        <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                      </svg>
+                      <svg class="icon-vol-muted" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" style="display:none;">
+                        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                        <line x1="23" y1="9" x2="17" y2="15"></line>
+                        <line x1="17" y1="9" x2="23" y2="15"></line>
+                      </svg>
+                    </button>
+                    <input type="range" class="volume-slider" id="ctrlVolumeSlider" min="0" max="1" step="0.05" value="1">
+                  </div>
+
+                  <!-- Time Display -->
+                  <div class="time-display">
+                    <span id="timeCurrent">00:00</span>
+                    <span class="time-sep">/</span>
+                    <span id="timeDuration">00:00</span>
+                  </div>
+                </div>
+
+                <div class="controls-group-right">
+                  <!-- Speed Selector -->
+                  <div class="speed-menu-wrapper">
+                    <button class="control-btn speed-btn" id="ctrlSpeedBtn" title="Velocidade de Reprodução (Salva para todos os vídeos)">
+                      <span id="ctrlSpeedLabel">1.0x</span>
+                    </button>
+                    <div class="speed-dropdown" id="speedDropdown">
+                      <button data-speed="0.5">0.5x</button>
+                      <button data-speed="0.75">0.75x</button>
+                      <button data-speed="1.0" class="active">1.0x (Normal)</button>
+                      <button data-speed="1.25">1.25x</button>
+                      <button data-speed="1.5">1.5x</button>
+                      <button data-speed="1.75">1.75x</button>
+                      <button data-speed="2.0">2.0x</button>
+                    </div>
+                  </div>
+
+                  <!-- Picture in Picture -->
+                  <button class="control-btn" id="ctrlPip" title="Picture in Picture (P)">
+                    <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2">
+                      <rect x="2" y="3" width="20" height="14" rx="2"></rect>
+                      <rect x="12" y="9" width="8" height="6" rx="1" fill="currentColor"></rect>
+                    </svg>
+                  </button>
+
+                  <!-- Fullscreen -->
+                  <button class="control-btn" id="ctrlFullscreen" title="Tela Cheia (F)">
+                    <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Quick Actions Bar Below Video -->
+          <div class="player-action-strip">
+            <div class="action-strip-left">
+              <!-- Navigation Previous/Next -->
+              <button class="btn btn-secondary btn-sm" id="btnPrevLesson" title="Aula Anterior (B)">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                  <polygon points="19 20 9 12 19 4 19 20"></polygon>
+                  <line x1="5" y1="19" x2="5" y2="5"></line>
+                </svg>
+                <span>Anterior</span>
+              </button>
+
+              <button class="btn btn-secondary btn-sm" id="btnNextLesson" title="Próxima Aula (N)">
+                <span>Próxima</span>
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                  <polygon points="5 4 15 12 5 20 5 4"></polygon>
+                  <line x1="19" y1="5" x2="19" y2="19"></line>
+                </svg>
+              </button>
+
+              <!-- Mark Completed Toggle (Does not pause, stop or reset playback!) -->
+              <button class="btn btn-sm btn-outline-success" id="btnToggleCompleted" title="Marcar como Concluída (C) - Não para o vídeo">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+                <span id="btnCompletedLabel">Marcar como Concluída</span>
+              </button>
+
+              <!-- Favorite Toggle -->
+              <button class="btn btn-sm btn-ghost" id="btnToggleFavorite" title="Adicionar aos Favoritos">
+                <svg class="fav-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
+                </svg>
+                <span id="btnFavoriteLabel">Favoritar</span>
+              </button>
+            </div>
+
+            <div class="action-strip-right">
+              <!-- Quick Note at Current Timestamp Button -->
+              <button class="btn btn-primary btn-sm" id="btnQuickNoteTimestamp">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                  <line x1="12" y1="5" x2="12" y2="19"></line>
+                  <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+                <span>Adicionar Nota (<span id="quickNoteCurrentTime">00:00</span>)</span>
+              </button>
+
+              <!-- Autoplay switch -->
+              <label class="switch-container" title="Reproduzir automaticamente a próxima aula">
+                <input type="checkbox" id="switchAutoPlay" checked>
+                <span class="switch-slider"></span>
+                <span class="switch-label">Auto-próxima</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Lesson Title & Info Banner -->
+          <div class="lesson-meta-card">
+            <div class="lesson-title-area">
+              <h1 class="lesson-clean-title" id="playerLessonCleanTitle">Título Limpo da Aula</h1>
+              <span class="lesson-raw-filename" id="playerLessonFileName" title="Caminho do arquivo">arquivo.mp4</span>
+            </div>
+          </div>
+
+          <!-- Bottom Tabs: Anotações & Detalhes -->
+          <div class="lesson-tabs-container">
+            <div class="tab-headers">
+              <button class="tab-btn active" data-tab="tabNotes">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                  <polyline points="14 2 14 8 20 8"></polyline>
+                  <line x1="16" y1="13" x2="8" y2="13"></line>
+                  <line x1="16" y1="17" x2="8" y2="17"></line>
+                </svg>
+                <span>Anotações da Aula (<span id="tabNotesCount">0</span>)</span>
+              </button>
+              <button class="tab-btn" data-tab="tabShortcuts">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="2" y="4" width="20" height="16" rx="2"></rect>
+                  <path d="M6 8h.001M10 8h.001M14 8h.001M18 8h.001M8 12h.001M12 12h.001M16 12h.001M7 16h10"></path>
+                </svg>
+                <span>Atalhos & Teclas</span>
+              </button>
+            </div>
+
+            <!-- Tab Content: Anotações -->
+            <div class="tab-pane active" id="tabNotes">
+              <div class="notes-form">
+                <div class="notes-input-wrapper">
+                  <div class="timestamp-tag-current" id="noteFormTimestampTag">00:00</div>
+                  <textarea id="noteInputText" placeholder="Escreva sua anotação desta aula aqui... (Pressione Ctrl+Enter para salvar rápido)" rows="2"></textarea>
+                </div>
+                <div class="notes-form-actions">
+                  <span class="note-hint">Dica: ao clicar no tempo da nota, o vídeo pula para o minuto exato!</span>
+                  <button class="btn btn-primary btn-sm" id="btnSaveNote">Salvar Anotação</button>
+                </div>
+              </div>
+              <div class="notes-list" id="lessonNotesList"></div>
+            </div>
+
+            <!-- Tab Content: Atalhos -->
+            <div class="tab-pane" id="tabShortcuts">
+              <div class="shortcuts-grid">
+                <div class="shortcut-item"><kbd>Espaço</kbd> ou <kbd>K</kbd> / <kbd>Clique na tela</kbd> <span>Play / Pause</span></div>
+                <div class="shortcut-item"><kbd>←</kbd> / <kbd>→</kbd> <span>Voltar / Avançar 10s</span></div>
+                <div class="shortcut-item"><kbd>↑</kbd> / <kbd>↓</kbd> <span>Aumentar / Diminuir Volume</span></div>
+                <div class="shortcut-item"><kbd>M</kbd> <span>Mudo (Mute)</span></div>
+                <div class="shortcut-item"><kbd>F</kbd> <span>Tela Cheia (Fullscreen)</span></div>
+                <div class="shortcut-item"><kbd>P</kbd> <span>Picture-in-Picture</span></div>
+                <div class="shortcut-item"><kbd>N</kbd> <span>Próxima Aula</span></div>
+                <div class="shortcut-item"><kbd>B</kbd> <span>Aula Anterior</span></div>
+                <div class="shortcut-item"><kbd>C</kbd> <span>Marcar Concluída (sem parar)</span></div>
+                <div class="shortcut-item"><kbd>0 - 9</kbd> <span>Pular para 0% a 90% do vídeo</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- RIGHT CURRICULUM SIDEBAR (FULLY SCROLLABLE) -->
+        <aside class="player-sidebar" id="playerSidebar">
+          <div class="sidebar-header">
+            <div class="sidebar-title-area">
+              <h3 class="sidebar-title">Conteúdo do Curso</h3>
+              <span class="sidebar-progress-text" id="sidebarProgressText">0 de 0 aulas concluídas</span>
+            </div>
+            <button class="sidebar-collapse-btn" id="btnCollapseSidebar" title="Recolher / Expandir barra lateral">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="15 18 9 12 15 6"></polyline>
+              </svg>
+            </button>
+          </div>
+
+          <!-- Search within course curriculum -->
+          <div class="sidebar-search">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input type="text" id="sidebarSearchInput" placeholder="Filtrar nesta trilha...">
+          </div>
+
+          <!-- Sidebar Filter Pills -->
+          <div class="sidebar-filter-pills">
+            <button class="sidebar-pill active" data-sidefilter="all">Todas</button>
+            <button class="sidebar-pill" data-sidefilter="unwatched">Restantes</button>
+            <button class="sidebar-pill" data-sidefilter="completed">Concluídas</button>
+          </div>
+
+          <!-- Modules Accordion List with Smooth Full Scroll -->
+          <div class="sidebar-modules-list" id="sidebarModulesList"></div>
+        </aside>
+
+      </div>
+    </section>
+
+    <!-- ================================================================= -->
+    <!-- 4. ALL NOTES VIEW -->
+    <!-- ================================================================= -->
+    <section class="view-section" id="viewNotes">
+      <div class="shelf-header">
+        <div class="shelf-title-box">
+          <h1 class="shelf-title">Anotações de Estudo</h1>
+          <span class="shelf-subtitle">Todas as suas anotações organizadas com timestamps clicáveis</span>
+        </div>
+        <div class="shelf-actions">
+          <button class="btn btn-secondary btn-sm" id="btnExportAllNotes">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+            <span>Exportar Anotações (.md)</span>
+          </button>
+        </div>
+      </div>
+      <div class="global-notes-container" id="globalNotesContainer"></div>
+    </section>
+
+    <!-- ================================================================= -->
+    <!-- 5. FAVORITES VIEW -->
+    <!-- ================================================================= -->
+    <section class="view-section" id="viewFavorites">
+      <div class="shelf-header">
+        <div class="shelf-title-box">
+          <h1 class="shelf-title">Aulas Favoritas</h1>
+          <span class="shelf-subtitle">Aulas que você marcou com estrela para consulta rápida</span>
+        </div>
+      </div>
+      <div class="videos-grid" id="favoritesVideosGrid"></div>
+    </section>
+
+    <!-- ================================================================= -->
+    <!-- 6. PROFESSIONAL WORKSPACE -->
+    <!-- ================================================================= -->
+    <section class="view-section" id="viewWork">
+      <div class="work-header">
+        <div>
+          <span class="eyebrow-label">ÁREA PROFISSIONAL</span>
+          <h1 class="shelf-title">Clientes & Campanhas</h1>
+          <p class="shelf-subtitle">Organize briefings, anúncios, resultados e materiais em um espaço privado local.</p>
+        </div>
+        <div class="work-header-actions">
+          <button class="btn btn-secondary btn-sm" id="btnExportWork">Exportar dados</button>
+          <button class="btn btn-primary btn-sm" id="btnNewClient">+ Novo cliente</button>
+        </div>
+      </div>
+
+      <div class="work-kpi-grid">
+        <div class="work-kpi"><span>Clientes ativos</span><strong id="workKpiClients">0</strong></div>
+        <div class="work-kpi"><span>Campanhas</span><strong id="workKpiCampaigns">0</strong></div>
+        <div class="work-kpi"><span>Investimento</span><strong id="workKpiSpend">R$ 0,00</strong></div>
+        <div class="work-kpi"><span>Leads gerados</span><strong id="workKpiLeads">0</strong></div>
+      </div>
+
+      <nav class="work-tabs" id="workTabs" aria-label="Seções profissionais">
+        <button class="work-tab active" data-work-section="clients">Clientes e campanhas</button>
+        <button class="work-tab" data-work-section="documents">Documentos</button>
+        <button class="work-tab" data-work-section="reports">Relatórios e dashboards</button>
+      </nav>
+
+      <div class="work-layout" id="workClientsSection">
+        <aside class="work-client-panel">
+          <div class="work-panel-heading">
+            <div><span class="eyebrow-label">CRM LOCAL</span>
+              <h2>Seus clientes</h2>
+            </div><span id="workClientCount">0</span>
+          </div>
+          <input class="work-search" id="workClientSearch" type="search" placeholder="Buscar cliente...">
+          <div class="work-client-list" id="workClientList"></div>
+        </aside>
+
+        <div class="work-detail-panel" id="workDetailPanel">
+          <div class="work-empty-state"><span class="work-empty-icon">+</span>
+            <h2>Selecione um cliente</h2>
+            <p>Crie seu primeiro cadastro para reunir briefing, campanhas, métricas e materiais.</p><button class="btn btn-primary" id="btnEmptyNewClient">Cadastrar cliente</button>
+          </div>
+        </div>
+      </div>
+      <section class="work-section-panel" id="workDocumentsSection" hidden>
+        <div class="work-section-heading">
+          <div><span class="eyebrow-label">ARQUIVO PROFISSIONAL</span>
+            <h2>Documentos e apresentações</h2>
+            <p>Organize materiais e associe cada documento a um cliente cadastrado.</p>
+          </div><button class="btn btn-primary btn-sm" id="btnNewDocument">+ Novo documento</button>
+        </div>
+        <div class="work-documents-layout">
+          <div class="work-document-filters"><label>Filtrar por cliente<select id="documentClientFilter">
+                <option value="all">Todos os clientes</option>
+              </select></label><input class="work-search" id="documentSearch" placeholder="Buscar documento..."></div>
+          <div class="work-document-grid" id="workDocumentsGrid"></div>
+        </div>
+      </section>
+      <section class="work-section-panel" id="workReportsSection" hidden>
+        <div class="work-section-heading">
+          <div><span class="eyebrow-label">ANÁLISE DE RESULTADOS</span>
+            <h2>Relatórios e dashboards</h2>
+            <p>Selecione o cliente, período e formato para visualizar um painel personalizado.</p>
+          </div><button class="btn btn-primary btn-sm" id="btnNewReport">+ Novo relatório</button>
+        </div>
+        <div class="meta-import-panel" id="metaImportPanel">
+          <div><span class="eyebrow-label">FONTE DE DADOS</span>
+            <h3>Importar insights do Meta Ads</h3>
+            <p>O token permanece protegido no backend. Informe apenas o ID da conta.</p>
+          </div>
+          <p class="meta-import-status" id="metaConnectionStatus"></p>
+          <div class="meta-import-controls"><label>Conta de anúncios<input id="metaAccountId" placeholder="act_1141685413198333"></label><label>Período<select id="metaDatePreset">
+                <option value="last_7d">Últimos 7 dias</option>
+                <option value="last_14d">Últimos 14 dias</option>
+                <option value="last_30d" selected>Últimos 30 dias</option>
+                <option value="this_month">Este mês</option>
+                <option value="last_month">Mês passado</option>
+              </select></label><button class="btn btn-primary btn-sm" id="btnImportMeta">Buscar dados</button></div>
+          <p class="meta-import-status" id="metaImportStatus"></p>
+        </div>
+        <div class="ga-import-panel" id="gaImportPanel">
+          <div><span class="eyebrow-label">FONTE DE DADOS</span>
+            <h3>Importar dados do Google Analytics 4</h3>
+            <p>Use o ID da propriedade GA4. A conta de serviço permanece no backend.</p>
+          </div>
+          <div class="meta-import-controls"><label>Propriedade GA4<input id="gaPropertyId" value="553354770" placeholder="123456789"></label><label>Período<select id="gaDatePreset">
+                <option value="last_7d" selected>Últimos 7 dias</option>
+                <option value="last_14d">Últimos 14 dias</option>
+                <option value="last_30d">Últimos 30 dias</option>
+                <option value="this_month">Este mês</option>
+              </select></label><button class="btn btn-primary btn-sm" id="btnImportGa">Buscar dados</button></div>
+          <p class="meta-import-status" id="gaImportStatus"></p>
+        </div>
+        <div id="workReportsContent"></div>
+      </section>
+    </section>
+
+  </main>
+
+  <!-- MODAL: SETTINGS & DIRECTORY -->
+  <div class="modal-backdrop" id="modalSettingsBackdrop">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 class="modal-title">Configurações da Plataforma</h3>
+        <button class="modal-close-btn" id="btnCloseSettings">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="cfgVideosDir">Pasta de Vídeos Local:</label>
+          <div class="input-with-btn">
+            <input type="text" id="cfgVideosDir" value="D:\Vídeos telegram\Curso Gestão de tráfego" placeholder="Caminho relativo ou absoluto da pasta de vídeos">
+            <button class="btn btn-secondary btn-sm" id="btnSaveVideosDir">Salvar</button>
+          </div>
+          <span class="form-hint" id="cfgAbsDirHint">Caminho: D:\Vídeos telegram\Curso Gestão de tráfego</span>
+        </div>
+
+        <div class="form-group">
+          <label>Tema Tech & Acento:</label>
+          <div class="theme-accent-picker" id="accentColorPicker">
+            <button class="accent-swatch active" data-color="indigo" style="background:#6366f1" title="Índigo Tech"></button>
+            <button class="accent-swatch" data-color="cyan" style="background:#06b6d4" title="Cyber Cyan"></button>
+            <button class="accent-swatch" data-color="emerald" style="background:#10b981" title="Emerald Matrix"></button>
+            <button class="accent-swatch" data-color="amber" style="background:#f59e0b" title="Amber Glow"></button>
+            <button class="accent-swatch" data-color="rose" style="background:#f43f5e" title="Neon Rose"></button>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Opções de Reprodução:</label>
+          <div class="checkbox-options">
+            <label class="checkbox-label">
+              <input type="checkbox" id="cfgAutoPlayNext">
+              <span>Auto-avançar para a próxima aula ao término do vídeo</span>
+            </label>
+            <label class="checkbox-label">
+              <input type="checkbox" id="cfgAutoMarkCompleted" checked>
+              <span>Marcar aula como concluída automaticamente aos 90% assistidos</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="form-group danger-zone">
+          <label>Gerenciamento de Dados:</label>
+          <button class="btn btn-outline-danger btn-sm" id="btnResetProgress">Zerar Histórico e Progresso</button>
+          <span class="form-hint">Atenção: Isso reinicia o status de aulas assistidas.</span>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" id="btnConfirmCloseSettings">Concluído</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST NOTIFICATION CONTAINER -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- APP SCRIPTS -->
+  <script src="/app.js?v=20260910b"></script>
+</body>
+
+</html>
