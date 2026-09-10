@@ -198,6 +198,7 @@ const el = {
   metaImportPanel: document.getElementById("metaImportPanel"),
   metaConnectionStatus: document.getElementById("metaConnectionStatus"),
   metaAccountId: document.getElementById("metaAccountId"),
+  metaQueryLevel: document.getElementById("metaQueryLevel"),
   metaDatePreset: document.getElementById("metaDatePreset"),
   btnImportMeta: document.getElementById("btnImportMeta"),
   metaImportStatus: document.getElementById("metaImportStatus"),
@@ -213,6 +214,8 @@ const el = {
   cfgVideosDir: document.getElementById("cfgVideosDir"),
   btnSaveVideosDir: document.getElementById("btnSaveVideosDir"),
   cfgAbsDirHint: document.getElementById("cfgAbsDirHint"),
+  cfgRemoteVideosUrl: document.getElementById("cfgRemoteVideosUrl"),
+  btnSaveRemoteVideosUrl: document.getElementById("btnSaveRemoteVideosUrl"),
   accentColorPicker: document.getElementById("accentColorPicker"),
   cfgAutoPlayNext: document.getElementById("cfgAutoPlayNext"),
   btnResetProgress: document.getElementById("btnResetProgress"),
@@ -352,6 +355,9 @@ async function fetchInitialData() {
     if (configRes && configRes.videosDir) {
       el.cfgVideosDir.value = configRes.videosDir;
       el.cfgAbsDirHint.textContent = `Caminho: ${configRes.videosAbsDir || configRes.videosDir}`;
+    }
+    if (configRes && typeof configRes.remoteVideosUrl === "string") {
+      el.cfgRemoteVideosUrl.value = configRes.remoteVideosUrl;
     }
 
     applySettings(state.settings);
@@ -697,41 +703,304 @@ function renderMetaDashboard(payload) {
       summary.impressions += Number(row.impressions || 0);
       summary.reach += Number(row.reach || 0);
       summary.clicks += Number(row.clicks || 0);
-      summary.cpm = row.cpm ? summary.cpm + Number(row.cpm) : summary.cpm;
-      summary.cpc = row.cpc ? summary.cpc + Number(row.cpc) : summary.cpc;
-      summary.ctr = row.ctr ? summary.ctr + Number(row.ctr) : summary.ctr;
+
+      if (row.actions && Array.isArray(row.actions)) {
+        row.actions.forEach((a) => {
+          if (
+            a.action_type === "purchase" ||
+            a.action_type === "omni_purchase"
+          ) {
+            summary.purchases += Number(a.value || 0);
+          } else if (
+            a.action_type === "lead" ||
+            a.action_type === "offsite_conversion.fb_pixel_lead"
+          ) {
+            summary.leads += Number(a.value || 0);
+          } else if (
+            a.action_type === "onsite_conversion.messaging_conversation_started_7d"
+          ) {
+            summary.messaging += Number(a.value || 0);
+          }
+        });
+      }
+
+      if (row.action_values && Array.isArray(row.action_values)) {
+        row.action_values.forEach((av) => {
+          if (
+            av.action_type === "purchase" ||
+            av.action_type === "omni_purchase"
+          ) {
+            summary.purchaseValue += Number(av.value || 0);
+          }
+        });
+      }
+
       return summary;
     },
-    { spend: 0, impressions: 0, reach: 0, clicks: 0, cpm: 0, cpc: 0, ctr: 0 },
+    {
+      spend: 0,
+      impressions: 0,
+      reach: 0,
+      clicks: 0,
+      purchases: 0,
+      leads: 0,
+      messaging: 0,
+      purchaseValue: 0,
+    },
   );
-  const count = Math.max(rows.length, 1);
+
   const ctr = total.impressions
-    ? (total.clicks / total.impressions) * 100
-    : total.ctr / count;
-  const campaigns = rows
-    .map(
-      (row) =>
-        `<div class="meta-campaign-row"><strong>${escapeHTML(row.campaign_name || row.adset_name || "Sem nome")}</strong><span>${formatCurrency(row.spend)} · ${Number(row.impressions || 0).toLocaleString("pt-BR")} impressões · ${Number(row.clicks || 0).toLocaleString("pt-BR")} cliques</span></div>`,
-    )
+    ? ((total.clicks / total.impressions) * 100).toFixed(2)
+    : "0.00";
+  const cpm = total.impressions
+    ? ((total.spend / total.impressions) * 1000).toFixed(2)
+    : "0.00";
+  const cpc = total.clicks ? (total.spend / total.clicks).toFixed(2) : "0.00";
+  const roas = total.spend
+    ? (total.purchaseValue / total.spend).toFixed(2)
+    : "0.00";
+  const cpl = total.leads ? (total.spend / total.leads).toFixed(2) : "0.00";
+
+  const maxSpend = Math.max(...rows.map((r) => Number(r.spend || 0)), 1);
+
+  const levelName =
+    payload.level === "ad"
+      ? "Anúncio"
+      : payload.level === "adset"
+        ? "Conjunto de Anúncios"
+        : "Campanha";
+
+  const campaignRows = rows
+    .map((row) => {
+      const name =
+        row.campaign_name || row.adset_name || row.ad_name || "Sem nome";
+      const spend = Number(row.spend || 0);
+      const imp = Number(row.impressions || 0);
+      const clk = Number(row.clicks || 0);
+      const rowCtr = imp ? ((clk / imp) * 100).toFixed(2) : "0.00";
+      const barWidth = Math.min(100, Math.max(5, (spend / maxSpend) * 100));
+
+      return `
+        <div class="dash-row-item">
+          <div class="dash-row-header">
+            <strong>${escapeHTML(name)}</strong>
+            <span>${formatCurrency(spend)}</span>
+          </div>
+          <div class="dash-row-bar-track">
+            <div class="dash-row-bar-fill" style="width: ${barWidth}%"></div>
+          </div>
+          <div class="dash-row-meta">
+            <span>Impressões: <b>${imp.toLocaleString("pt-BR")}</b></span>
+            <span>Cliques: <b>${clk.toLocaleString("pt-BR")}</b></span>
+            <span>CTR: <b>${rowCtr}%</b></span>
+          </div>
+        </div>
+      `;
+    })
     .join("");
-  return `<article class="meta-dashboard-card"><div class="work-report-heading"><div><span class="eyebrow-label">META ADS · DADOS AO VIVO</span><h2>Insights da conta ${escapeHTML(payload.accountId)}</h2><p>Período: ${escapeHTML(payload.datePreset)} · Atualizado em ${new Date().toLocaleString("pt-BR")}</p></div></div><div class="report-metric-grid"><div><span>Investimento</span><strong>${formatCurrency(total.spend)}</strong></div><div><span>Impressões</span><strong>${total.impressions.toLocaleString("pt-BR")}</strong></div><div><span>Alcance</span><strong>${total.reach.toLocaleString("pt-BR")}</strong></div><div><span>Cliques</span><strong>${total.clicks.toLocaleString("pt-BR")}</strong></div><div><span>CTR</span><strong>${ctr.toFixed(2)}%</strong></div><div><span>CPM médio</span><strong>${formatCurrency(total.cpm / count)}</strong></div><div><span>CPC médio</span><strong>${formatCurrency(total.cpc / count)}</strong></div><div><span>Campanhas</span><strong>${rows.length}</strong></div></div><div class="meta-campaign-list"><h3>Detalhamento por campanha</h3>${campaigns || `<p class="work-muted">A Meta não retornou linhas para esse período.</p>`}</div></article>`;
+
+  return `
+    <article class="meta-dashboard-card full-dashboard">
+      <div class="work-report-heading">
+        <div>
+          <span class="eyebrow-label">DASHBOARD DE PERFORMANCE · META ADS</span>
+          <h2>Visão Geral do Meta Ads - Conta ${escapeHTML(payload.accountId)}</h2>
+          <p>Nível: ${escapeHTML(levelName)} · Período: ${escapeHTML(payload.datePreset)} · Gerado em ${new Date().toLocaleString("pt-BR")}</p>
+        </div>
+        <button class="btn btn-secondary btn-sm" onclick="window.print()">Imprimir / PDF</button>
+      </div>
+
+      <!-- KPI Grid -->
+      <div class="report-metric-grid">
+        <div class="kpi-card highlight-purple">
+          <span>Investimento Total</span>
+          <strong>${formatCurrency(total.spend)}</strong>
+        </div>
+        <div class="kpi-card">
+          <span>Impressões</span>
+          <strong>${total.impressions.toLocaleString("pt-BR")}</strong>
+        </div>
+        <div class="kpi-card">
+          <span>Alcance</span>
+          <strong>${total.reach.toLocaleString("pt-BR")}</strong>
+        </div>
+        <div class="kpi-card">
+          <span>Cliques no Anúncio</span>
+          <strong>${total.clicks.toLocaleString("pt-BR")}</strong>
+        </div>
+        <div class="kpi-card highlight-green">
+          <span>CTR (Taxa de Cliques)</span>
+          <strong>${ctr}%</strong>
+        </div>
+        <div class="kpi-card">
+          <span>CPM Médio</span>
+          <strong>${formatCurrency(cpm)}</strong>
+        </div>
+        <div class="kpi-card">
+          <span>CPC Médio</span>
+          <strong>${formatCurrency(cpc)}</strong>
+        </div>
+        <div class="kpi-card highlight-amber">
+          <span>ROAS Estimado</span>
+          <strong>${roas}x</strong>
+        </div>
+        <div class="kpi-card">
+          <span>Leads Gerados</span>
+          <strong>${total.leads}</strong>
+        </div>
+        <div class="kpi-card">
+          <span>Custo por Lead (CPL)</span>
+          <strong>${formatCurrency(cpl)}</strong>
+        </div>
+        <div class="kpi-card">
+          <span>Conversas Iniciadas</span>
+          <strong>${total.messaging}</strong>
+        </div>
+        <div class="kpi-card">
+          <span>Valor em Compras</span>
+          <strong>${formatCurrency(total.purchaseValue)}</strong>
+        </div>
+      </div>
+
+      <!-- Detail list -->
+      <div class="meta-campaign-list">
+        <h3>Desempenho Visual por ${escapeHTML(levelName)}</h3>
+        <div class="dash-rows-container">
+          ${campaignRows || `<p class="work-muted">Nenhum dado retornado para este nível/período.</p>`}
+        </div>
+      </div>
+    </article>
+  `;
 }
 
 function renderGaDashboard(payload) {
   const rows = payload.data || [];
-  let sessions = 0;
-  let conversions = 0;
-  const channelRows = rows
-    .map((row) => {
-      const channel = row.sessionDefaultChannelGroup || "(não definido)";
-      const rowSessions = Number(row.sessions || 0);
-      const rowConversions = Number(row.conversions || 0);
-      sessions += rowSessions;
-      conversions += rowConversions;
-      return `<div class="meta-campaign-row"><strong>${escapeHTML(channel)}</strong><span>${rowSessions.toLocaleString("pt-BR")} sessões · ${rowConversions.toLocaleString("pt-BR")} conversões</span></div>`;
+
+  let totalSessions = 0;
+  let totalConversions = 0;
+  let totalUsers = 0;
+  let newUsers = 0;
+  let activeUsers = 0;
+  let pageViews = 0;
+  let engagementSum = 0;
+  let bounceSum = 0;
+
+  const channelMap = new Map();
+
+  rows.forEach((row) => {
+    const sessions = Number(row.sessions || 0);
+    const convs = Number(row.conversions || 0);
+    const channel = row.sessionDefaultChannelGroup || "Direct / Outros";
+
+    totalSessions += sessions;
+    totalConversions += convs;
+    totalUsers += Number(row.totalUsers || 0);
+    newUsers += Number(row.newUsers || 0);
+    activeUsers += Number(row.activeUsers || 0);
+    pageViews += Number(row.screenPageViews || 0);
+    engagementSum += Number(row.engagementRate || 0);
+    bounceSum += Number(row.bounceRate || 0);
+
+    if (!channelMap.has(channel)) {
+      channelMap.set(channel, { sessions: 0, conversions: 0 });
+    }
+    const curr = channelMap.get(channel);
+    curr.sessions += sessions;
+    curr.conversions += convs;
+  });
+
+  const rowCount = Math.max(rows.length, 1);
+  const avgEngagement = (engagementSum / rowCount) * 100;
+  const avgBounce = (bounceSum / rowCount) * 100;
+  const conversionRate = totalSessions
+    ? ((totalConversions / totalSessions) * 100).toFixed(2)
+    : "0.00";
+
+  const maxChannelSessions = Math.max(
+    ...Array.from(channelMap.values()).map((v) => v.sessions),
+    1,
+  );
+
+  const channelList = Array.from(channelMap.entries())
+    .map(([channel, metrics]) => {
+      const barWidth = Math.min(
+        100,
+        Math.max(5, (metrics.sessions / maxChannelSessions) * 100),
+      );
+      return `
+      <div class="dash-row-item">
+        <div class="dash-row-header">
+          <strong>${escapeHTML(channel)}</strong>
+          <span><b>${metrics.sessions.toLocaleString("pt-BR")}</b> sessões</span>
+        </div>
+        <div class="dash-row-bar-track">
+          <div class="dash-row-bar-fill ga-bar" style="width: ${barWidth}%"></div>
+        </div>
+        <div class="dash-row-meta">
+          <span>Conversões: <b>${metrics.conversions.toLocaleString("pt-BR")}</b></span>
+          <span>Taxa de Conversão: <b>${metrics.sessions ? ((metrics.conversions / metrics.sessions) * 100).toFixed(2) : "0.00"}%</b></span>
+        </div>
+      </div>
+    `;
     })
     .join("");
-  return `<article class="ga-dashboard-card"><div class="work-report-heading"><div><span class="eyebrow-label">GOOGLE ANALYTICS 4 · DADOS AO VIVO</span><h2>Propriedade ${escapeHTML(payload.propertyId)}</h2><p>${escapeHTML(payload.timezone || "Fuso não informado")} · ${escapeHTML(payload.currency || "Moeda não informada")} · ${escapeHTML(payload.datePreset)} · Atualizado em ${new Date().toLocaleString("pt-BR")}</p></div></div><div class="report-metric-grid"><div><span>Sessões</span><strong>${sessions.toLocaleString("pt-BR")}</strong></div><div><span>Conversões</span><strong>${conversions.toLocaleString("pt-BR")}</strong></div><div><span>Taxa de conversão</span><strong>${sessions ? ((conversions / sessions) * 100).toFixed(2) : "0.00"}%</strong></div><div><span>Canais</span><strong>${rows.length}</strong></div></div><div class="meta-campaign-list"><h3>Sessões e conversões por canal</h3>${channelRows || `<p class="work-muted">O GA4 não retornou dados para esse período.</p>`}</div></article>`;
+
+  return `
+    <article class="ga-dashboard-card full-dashboard">
+      <div class="work-report-heading">
+        <div>
+          <span class="eyebrow-label">DASHBOARD DE TRÁFEGO · GOOGLE ANALYTICS 4</span>
+          <h2>Visão Geral do GA4 - Propriedade ${escapeHTML(payload.propertyId)}</h2>
+          <p>Fuso: ${escapeHTML(payload.timezone || "América/São_Paulo")} · Período: ${escapeHTML(payload.datePreset)} · Gerado em ${new Date().toLocaleString("pt-BR")}</p>
+        </div>
+        <button class="btn btn-secondary btn-sm" onclick="window.print()">Imprimir / PDF</button>
+      </div>
+
+      <!-- KPI Grid -->
+      <div class="report-metric-grid">
+        <div class="kpi-card highlight-purple">
+          <span>Total de Sessões</span>
+          <strong>${totalSessions.toLocaleString("pt-BR")}</strong>
+        </div>
+        <div class="kpi-card highlight-green">
+          <span>Conversões Totais</span>
+          <strong>${totalConversions.toLocaleString("pt-BR")}</strong>
+        </div>
+        <div class="kpi-card highlight-amber">
+          <span>Taxa de Conversão</span>
+          <strong>${conversionRate}%</strong>
+        </div>
+        <div class="kpi-card">
+          <span>Usuários Totais</span>
+          <strong>${totalUsers.toLocaleString("pt-BR")}</strong>
+        </div>
+        <div class="kpi-card">
+          <span>Novos Usuários</span>
+          <strong>${newUsers.toLocaleString("pt-BR")}</strong>
+        </div>
+        <div class="kpi-card">
+          <span>Usuários Ativos</span>
+          <strong>${activeUsers.toLocaleString("pt-BR")}</strong>
+        </div>
+        <div class="kpi-card">
+          <span>Visualizações de Página</span>
+          <strong>${pageViews.toLocaleString("pt-BR")}</strong>
+        </div>
+        <div class="kpi-card">
+          <span>Taxa de Engajamento</span>
+          <strong>${avgEngagement.toFixed(1)}%</strong>
+        </div>
+      </div>
+
+      <!-- Channel Breakdown -->
+      <div class="meta-campaign-list">
+        <h3>Distribuição de Sessões e Conversões por Canal (Channel Group)</h3>
+        <div class="dash-rows-container">
+          ${channelList || `<p class="work-muted">Nenhum dado retornado do GA4 para o período selecionado.</p>`}
+        </div>
+      </div>
+    </article>
+  `;
 }
 
 async function importGaInsights() {
@@ -795,28 +1064,29 @@ async function refreshMetaConnectionStatus() {
 async function importMetaInsights() {
   const accountId = el.metaAccountId.value.trim();
   const datePreset = el.metaDatePreset.value;
+  const level = el.metaQueryLevel?.value || "campaign";
   if (!/^act_\d+$/.test(accountId)) {
     el.metaImportStatus.textContent = "Informe um ID no formato act_<ID>.";
     el.metaImportStatus.className = "meta-import-status error";
     return;
   }
   el.btnImportMeta.disabled = true;
-  el.metaImportStatus.textContent = "Buscando insights no Meta Ads...";
+  el.metaImportStatus.textContent = "Gerando dashboard do Meta Ads...";
   el.metaImportStatus.className = "meta-import-status";
   try {
     const response = await fetch(
-      `/api/meta/insights?accountId=${encodeURIComponent(accountId)}&datePreset=${encodeURIComponent(datePreset)}&level=campaign`,
+      `/api/meta/insights?accountId=${encodeURIComponent(accountId)}&datePreset=${encodeURIComponent(datePreset)}&level=${encodeURIComponent(level)}`,
     );
     const result = await response.json();
     if (!response.ok) {
       const details =
         result.details?.error_user_msg || result.details?.error_user_title;
       throw new Error(
-        `${result.error || "Não foi possível buscar os insights"}${details ? `: ${details}` : ""} (HTTP ${response.status})`,
+        `${result.error || "Não foi possível gerar o dashboard"}${details ? `: ${details}` : ""} (HTTP ${response.status})`,
       );
     }
-    state.metaInsights = { ...result, accountId, datePreset };
-    el.metaImportStatus.textContent = `${result.data?.length || 0} linha(s) importada(s).`;
+    state.metaInsights = { ...result, accountId, datePreset, level };
+    el.metaImportStatus.textContent = `Dashboard do Meta Ads gerado com sucesso! (${result.data?.length || 0} registros encontrados)`;
     el.metaImportStatus.className = "meta-import-status success";
     renderWorkReports();
   } catch (error) {
@@ -2749,6 +3019,25 @@ function initEventListeners() {
       }
     } catch (e) {
       showToast("Erro ao salvar diretório", "danger");
+    }
+  });
+
+  // Save Remote Videos URL
+  el.btnSaveRemoteVideosUrl?.addEventListener("click", async () => {
+    const remoteUrl = el.cfgRemoteVideosUrl.value.trim();
+    try {
+      const res = await fetch("/api/config", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ remoteVideosUrl: remoteUrl }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast("URL remota salva com sucesso!", "success");
+        await fetchInitialData();
+      }
+    } catch (e) {
+      showToast("Erro ao salvar URL remota", "danger");
     }
   });
 
