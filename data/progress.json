@@ -1,5 +1,5 @@
 {
-  "lastVideoId": "01 - CURSO SUBIDO DE TRÁFEGO/M002 - Tráfego para Meta Ads/6.1 Seleção de objetivos e metas de desempenho.mp4",
+  "lastVideoId": "02 - CURSO SUBIDO DE PROSPECÇÕES/6.8 - Procurando na Hotmart, Eduzz e Monetizze.mp4",
   "videos": {
     "01 - CURSO SUBIDO DE TRÁFEGO/M001 - Princípios Gerais do Tráfego/0 Leilão - o algoritmo do tráfego pago.mp4": {
       "currentTime": 45.2,
@@ -247,32 +247,32 @@
       "lastWatchedAt": "2026-09-10T06:52:51.864Z"
     },
     "01 - CURSO SUBIDO DE TRÁFEGO/M002 - Tráfego para Meta Ads/6.1 Seleção de objetivos e metas de desempenho.mp4": {
-      "currentTime": 37.903932,
+      "currentTime": 2627.545,
       "duration": 2627.545,
-      "percentage": 1,
-      "completed": false,
-      "lastWatchedAt": "2026-09-10T06:53:30.718Z"
+      "percentage": 100,
+      "completed": true,
+      "lastWatchedAt": "2026-09-11T01:52:28.150Z"
     },
     "01 - CURSO SUBIDO DE TRÁFEGO/M002 - Tráfego para Meta Ads/6.4 Estratégias de lance.mp4": {
-      "currentTime": 6.748437,
-      "duration": 883.801,
-      "percentage": 1,
-      "completed": false,
-      "lastWatchedAt": "2026-09-09T21:09:26.274Z"
+      "currentTime": 10.954757,
+      "duration": 0,
+      "percentage": 0,
+      "completed": true,
+      "lastWatchedAt": "2026-09-11T03:49:04.036Z"
     },
     "01 - CURSO SUBIDO DE TRÁFEGO/M002 - Tráfego para Meta Ads/6.5 Conversão.mp4": {
-      "currentTime": 10.954757,
+      "currentTime": 868.483667,
       "duration": 868.483667,
-      "percentage": 1,
-      "completed": false,
-      "lastWatchedAt": "2026-09-09T21:09:34.719Z"
+      "percentage": 100,
+      "completed": true,
+      "lastWatchedAt": "2026-09-11T03:57:36.728Z"
     },
     "01 - CURSO SUBIDO DE TRÁFEGO/M002 - Tráfego para Meta Ads/6.7 União e separação de públicos.mp4": {
-      "currentTime": 0.328539,
+      "currentTime": 1759.811,
       "duration": 1759.811,
-      "percentage": 0,
-      "completed": false,
-      "lastWatchedAt": "2026-09-09T21:10:54.073Z"
+      "percentage": 100,
+      "completed": true,
+      "lastWatchedAt": "2026-09-11T06:07:55.915Z"
     },
     "01 - CURSO SUBIDO DE TRÁFEGO/M002 - Tráfego para Meta Ads/6.11 Anúncios - Identidade e Configuração.mp4": {
       "currentTime": 0.745845,
@@ -357,6 +357,188 @@
       "percentage": 84,
       "completed": true,
       "lastWatchedAt": "2026-09-10T06:53:09.188Z"
+    },
+    "01 - CURSO SUBIDO DE TRÁFEGO/M002 - Tráfego para Meta Ads/6.2 Nomenclatura de campanhas.mp4": {
+      "currentTime": 3.517709,
+      "duration": 754.201,
+      "percentage": 0,
+      "completed": true,
+      "lastWatchedAt": "2026-09-11T02:03:35.141Z"
+    },
+    "01 - CURSO SUBIDO DE TRÁFEGO/M002 - Tráfego para Meta Ads/6.3 Tipos de orçamento (CBO, ABO, diário e total).mp4": {
+      "currentTime": 10.954757,
+      "duration": 0,
+      "percentage": 0,
+      "completed": true,
+      "lastWatchedAt": "2026-09-11T03:49:25.596Z"
+    },
+    "01 - CURSO SUBIDO DE TRÁFEGO/M002 - Tráfego para Meta Ads/6.6 Criativo dinâmico.mp4": {
+      "currentTime": 320.835333,
+      "duration": 320.835333,
+      "percentage": 100,
+      "completed": true,
+      "lastWatchedAt": "2026-09-11T05:51:05.309Z"
+    },
+    "01 - CURSO SUBIDO DE TRÁFEGO/M002 - Tráfego para Meta Ads/6.8 Exclusão e hierarquia de públicos.mp4": {
+      "currentTime": 30.370413,
+      "duration": 1909.485333,
+      "percentage": 2,
+      "completed": false,
+      "lastWatchedAt": "2026-09-14T15:40:54.407Z"
+    },
+    "02 - CURSO SUBIDO DE PROSPECÇÕES/1.0 - Como parar de procrastinar.mp4": {
+      "currentTime": 925.677667,
+      "duration": 925.677667,
+      "percentage": 100,
+      "completed": true,
+      "lastWatchedAt": "2026-09-14T15:50:27.821Z"
+    },
+    "02 - CURSO SUBIDO DE PROSPECÇÕES/2.0 - Fundamentos de um bom posicionamento.mp4": {
+      "currentTime": 709.806,
+      "duration": 709.806,
+      "percentage": 100,
+      "completed": true,
+      "lastWatchedAt": "2026-09-14T15:58:26.182Z"
+    },
+    "02 - CURSO SUBIDO DE PROSPECÇÕES/2.1 - Missão prática.mp4": {
+      "currentTime": 210.606,
+      "duration": 210.606,
+      "percentage": 100,
+      "completed": true,
+      "lastWatchedAt": "2026-09-14T16:00:51.755Z"
+    },
+    "02 - CURSO SUBIDO DE PROSPECÇÕES/3.0 - Entendendo o que você vende.mp4": {
+      "currentTime": 244.931667,
+      "duration": 244.931667,
+      "percentage": 100,
+      "completed": true,
+      "lastWatchedAt": "2026-09-14T16:03:36.412Z"
+    },
+    "02 - CURSO SUBIDO DE PROSPECÇÕES/3.1 - Definindo seus entregáveis.mp4": {
+      "currentTime": 0.623196,
+      "duration": 632.856333,
+      "percentage": 0,
+      "completed": true,
+      "lastWatchedAt": "2026-09-14T20:46:31.097Z"
+    },
+    "02 - CURSO SUBIDO DE PROSPECÇÕES/3.2 - Precificando seu produto.mp4": {
+      "currentTime": 112.322,
+      "duration": 112.322,
+      "percentage": 100,
+      "completed": true,
+      "lastWatchedAt": "2026-09-14T20:45:48.297Z"
+    },
+    "02 - CURSO SUBIDO DE PROSPECÇÕES/3.3 - Missão prática.mp4": {
+      "currentTime": 89.773667,
+      "duration": 89.773667,
+      "percentage": 100,
+      "completed": true,
+      "lastWatchedAt": "2026-09-14T20:49:23.498Z"
+    },
+    "02 - CURSO SUBIDO DE PROSPECÇÕES/4.0 - Entendendo para quem você vende.mp4": {
+      "currentTime": 126.979,
+      "duration": 126.979,
+      "percentage": 100,
+      "completed": true,
+      "lastWatchedAt": "2026-09-14T21:04:17.190Z"
+    },
+    "02 - CURSO SUBIDO DE PROSPECÇÕES/4.1 - Um nicho ou múltiplos nichos.mp4": {
+      "currentTime": 235.864333,
+      "duration": 235.864333,
+      "percentage": 100,
+      "completed": true,
+      "lastWatchedAt": "2026-09-14T21:06:56.130Z"
+    },
+    "02 - CURSO SUBIDO DE PROSPECÇÕES/4.2 - E-commerce, negócios locais ou infoprodutos.mp4": {
+      "currentTime": 461.251667,
+      "duration": 461.251667,
+      "percentage": 100,
+      "completed": true,
+      "lastWatchedAt": "2026-09-14T21:12:08.779Z"
+    },
+    "02 - CURSO SUBIDO DE PROSPECÇÕES/4.3 - Nichos que pagam bem.mp4": {
+      "currentTime": 464.643,
+      "duration": 464.643,
+      "percentage": 100,
+      "completed": true,
+      "lastWatchedAt": "2026-09-14T21:17:23.699Z"
+    },
+    "02 - CURSO SUBIDO DE PROSPECÇÕES/4.4 - Local.mp4": {
+      "currentTime": 284.547667,
+      "duration": 284.547667,
+      "percentage": 100,
+      "completed": true,
+      "lastWatchedAt": "2026-09-14T21:20:38.539Z"
+    },
+    "02 - CURSO SUBIDO DE PROSPECÇÕES/4.5 - Missão prática (defina o seu cliente ideal).mp4": {
+      "currentTime": 295.405667,
+      "duration": 295.405667,
+      "percentage": 100,
+      "completed": true,
+      "lastWatchedAt": "2026-09-14T21:26:55.766Z"
+    },
+    "02 - CURSO SUBIDO DE PROSPECÇÕES/5.0 - Métodos de prospecção, qual é o melhor.mp4": {
+      "currentTime": 146.073,
+      "duration": 146.073,
+      "percentage": 100,
+      "completed": true,
+      "lastWatchedAt": "2026-09-14T21:28:38.409Z"
+    },
+    "02 - CURSO SUBIDO DE PROSPECÇÕES/6.0 - Encontrando possíveis clientes.mp4": {
+      "currentTime": 60.888667,
+      "duration": 60.888667,
+      "percentage": 100,
+      "completed": true,
+      "lastWatchedAt": "2026-09-14T21:29:24.221Z"
+    },
+    "02 - CURSO SUBIDO DE PROSPECÇÕES/6.1 - Amigos, família e amigos de amigos.mp4": {
+      "currentTime": 220.568667,
+      "duration": 220.568667,
+      "percentage": 100,
+      "completed": true,
+      "lastWatchedAt": "2026-09-14T21:31:52.714Z"
+    },
+    "02 - CURSO SUBIDO DE PROSPECÇÕES/6.2 - Redes sociais.mp4": {
+      "currentTime": 1060.355333,
+      "duration": 1060.355333,
+      "percentage": 100,
+      "completed": true,
+      "lastWatchedAt": "2026-09-14T21:35:52.246Z"
+    },
+    "02 - CURSO SUBIDO DE PROSPECÇÕES/6.3 - Biblioteca de anúncios.mp4": {
+      "currentTime": 298.115667,
+      "duration": 298.115667,
+      "percentage": 100,
+      "completed": true,
+      "lastWatchedAt": "2026-09-14T21:37:21.600Z"
+    },
+    "02 - CURSO SUBIDO DE PROSPECÇÕES/6.4 - Agências.mp4": {
+      "currentTime": 375.854333,
+      "duration": 375.854333,
+      "percentage": 100,
+      "completed": true,
+      "lastWatchedAt": "2026-09-14T21:39:03.799Z"
+    },
+    "02 - CURSO SUBIDO DE PROSPECÇÕES/6.5 - iFood.mp4": {
+      "currentTime": 494.445667,
+      "duration": 494.445667,
+      "percentage": 100,
+      "completed": true,
+      "lastWatchedAt": "2026-09-14T21:46:22.739Z"
+    },
+    "02 - CURSO SUBIDO DE PROSPECÇÕES/6.7 - Google.mp4": {
+      "currentTime": 604.824333,
+      "duration": 604.824333,
+      "percentage": 100,
+      "completed": true,
+      "lastWatchedAt": "2026-09-14T21:50:47.949Z"
+    },
+    "02 - CURSO SUBIDO DE PROSPECÇÕES/6.8 - Procurando na Hotmart, Eduzz e Monetizze.mp4": {
+      "currentTime": 17.501889,
+      "duration": 477.101667,
+      "percentage": 4,
+      "completed": false,
+      "lastWatchedAt": "2026-09-14T21:51:02.687Z"
     }
   }
 }

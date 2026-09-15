@@ -1,11 +1,67 @@
 [
   {
-    "id": "note_1789022319398_nhfl5",
-    "videoId": "01 - CURSO SUBIDO DE TRÁFEGO/M002 - Tráfego para Meta Ads/5.1 Públicos Personalizados.mp4",
-    "timestamp": 3013.997667,
-    "timestampFormatted": "50:13",
-    "text": "Resumo: Públicos Personalizados no Meta Ads\n1. Dicas Essenciais\nCriação em Lote: Crie públicos com múltiplas retenções de uma só vez (1, 3, 7, 14, 30, 60, 90 e 180 dias) para poupar tempo.\n\nURLs Limpas: Ao rastrear URLs específicas, não insira https://. Use o domínio direto (ex: seusite.com.br/pagina).\n\nRefinamentos Úteis: Utilize condições \"E/OU\" para cruzar dados (ex: visitou a página de lives OU o blog) e refine por dispositivo (Mobile, Desktop, iOS, Android) ou frequência.\n\nListas com LTV: Sempre que subir listas de clientes (e-mail/telefone), inclua o Valor do Cliente (LTV) se possível. Isso qualifica a inteligência da plataforma para encontrar clientes similares mais valiosos.\n\n\n2. Práticas de Nomenclatura\nA nomenclatura deve ser padronizada para facilitar a identificação no Gerenciador de Anúncios. A estrutura ideal sugerida é:\n[FONTE] Ação do Usuário - Especificação - Tempo de Retenção\nUse colchetes para indicar a fonte de dados primária.\nSepare as variáveis com espaço, hífen e espaço ( - ).\n\n3. Tipos de Públicos para Criar\n\nPúblicos de Site (Requer Pixel)\n\nTipo de Público | Descrição | Exemplo de Nomenclatura\nVisitantes Gerais | Todos que acessaram qualquer página do site. | [SITE] Visitantes do Site - 30D\nPáginas Específicas | Acessaram URLs específicas (ex: Blog, Carrinho, Obrigado). | [SITE] Visitou - Lives Semanais - 7D\nTempo Gasto | Top 5%, 10% ou 25% dos usuários com maior tempo de sessão. | [SITE] Visitantes do Site - 5% - 180D\nEventos Específicos | Usuários que dispararam eventos padrão (ex: Lead). | [SITE] Visitou - Lead - 180D\n\n\nPúblicos de Aplicativo\n\nTipo de Público | Descrição| Exemplo de Nomenclatura\nAbertura | Qualquer pessoa que abriu o aplicativo. | [APP] NomeDoApp - Abriu - 30D\nUsuários Ativos | Top 5%, 10% ou 25% dos usuários mais ativos no app. | [APP] NomeDoApp - Ativos - 5% - 30D\nValor de Compra | Os usuários que mais gastaram financeiramente no app. | [APP] NomeDoApp - Valor - 25% - 30D\n\n\nPúblicos de Catálogo (E-commerce)\n\nTipo de Público | Descrição | Exemplo de Nomenclatura\nVisualização | Viram produtos de um conjunto específico. | [CATÁLOGO] Conjunto Camisetas - Viram - 14D\nCarrinho | Adicionaram produtos do conjunto ao carrinho. | [CATÁLOGO] Conjunto Camisetas - Carrinho - 14D\nCompra | Finalizaram a compra dos produtos selecionados. | [CATÁLOGO] Conjunto Camisetas - Compraram - 30D\n\nLista de Clientes\nPúblicos criados a partir do upload de arquivos CSV contendo e-mails ou números de telefone (com ou sem a coluna de valor do cliente).",
-    "createdAt": "2026-09-10T06:38:39.398Z"
+    "id": "note_1789106869237_hxfm3",
+    "videoId": "01 - CURSO SUBIDO DE TRÁFEGO/M002 - Tráfego para Meta Ads/6.7 União e separação de públicos.mp4",
+    "timestamp": 1748.124617,
+    "timestampFormatted": "29:08",
+    "text": "ESTRUTURAÇÃO DE CAMPANHAS E PÚBLICOS NO META ADS\n\n1. Quando SEPARAR públicos em diferentes conjuntos de anúncios\n\n    - Posicionamentos diferentes: Quando há anúncios criados especificamente para cada local (ex: um formato exclusivo para Feed e outro para Stories).\n\n    - Controle de verba: Quando você precisa garantir que um valor específico ou mínimo seja gasto em um determinado público.\n\n    - Análise isolada: Quando o objetivo é medir o desempenho de um público específico sem a interferência ou diluição de dados de outros públicos.\n\n    - Temperaturas de aquecimento diferentes: Quando os públicos possuem níveis de intenção muito distintos (ex: quem abandonou o carrinho ontem vs. quem curtiu um post há um ano).\n\n    - Anúncio específico para o público: Quando a mensagem ou criativo foi desenvolvida exclusivamente para conversar com um público determinado.\n\n\n\n2. Quando UNIR públicos no mesmo conjunto de anúncios\n\n    - Verba restrita: Quando o orçamento é muito pequeno, unir públicos ajuda a concentrar o investimento.\n\n    - Segmentação muito pequena: Quando o tamanho do público é muito reduzido (ex: menos de 100 visitas), juntá-lo a outro aumenta o volume para o algoritmo trabalhar.\n\n    - Públicos muito semelhantes: Quando as intenções se sobrepõem, somar a inteligência ajuda o algoritmo (ex: unir quem baixou o Ebook 1 com quem baixou o Ebook 2).\n\n    - Conjuntos que não gastam dinheiro: Quando um conjunto específico não consegue consumir a verba diária definida, uni-lo a outro público pode forçar a entrega.\n\n    - Limite de anúncios por página: Quando a conta atinge o limite máximo de anúncios ativos permitidos pelo Meta, unir públicos reduz a quantidade de conjuntos e anúncios necessários.\n\n\n\n\n3. Como estruturar as Campanhas\n\n    - Pouquíssima verba: Crie apenas uma campanha e controle todos os gastos e públicos dentro dela.\n\n    - Verba adequada: Separe as campanhas de acordo com o nível de aquecimento dos públicos (ex: uma campanha exclusiva para público frio e outra separada para público quente).",
+    "createdAt": "2026-09-11T06:07:49.237Z"
+  },
+  {
+    "id": "note_1789098499210_p32h4",
+    "videoId": "01 - CURSO SUBIDO DE TRÁFEGO/M002 - Tráfego para Meta Ads/6.4 Estratégias de lance.mp4",
+    "timestamp": 685.77901,
+    "timestampFormatted": "11:25",
+    "text": "Limite de lance: Defino o lance máximo\n\nO limite de lance não controle o custo por ação (custo por lance)\n - É necessário fazer alterações mais frequentes para achar o ponto perfeito",
+    "createdAt": "2026-09-11T03:48:19.210Z"
+  },
+  {
+    "id": "note_1789098278945_jyn1w",
+    "videoId": "01 - CURSO SUBIDO DE TRÁFEGO/M002 - Tráfego para Meta Ads/6.4 Estratégias de lance.mp4",
+    "timestamp": 498.557178,
+    "timestampFormatted": "08:18",
+    "text": "ESTRATEGIAS DE LANCE\n\nValor ou volume mais alto: O maior número de resultados com o dinheiro que você tem\n\nMeta de custo por resultado: busca manter os custos por resultado perto de um determinado valor\n       - Pode não gastar seu orçamento\n       - Gasto mais lento\n       - Fase de aprendizado mais longa com mais variações\n\nMeta de ROAS: definir um determinado retorno sobre o investimento\n\nEx: Se eu quero gastar 100 reais e quero que gere pelo menos 180 reais em compras (180%), definir um controle de ROAS como 1,8",
+    "createdAt": "2026-09-11T03:44:38.946Z"
+  },
+  {
+    "id": "note_1789092215992_x7ljo",
+    "videoId": "01 - CURSO SUBIDO DE TRÁFEGO/M002 - Tráfego para Meta Ads/6.2 Nomenclatura de campanhas.mp4",
+    "timestamp": 5.005636,
+    "timestampFormatted": "00:05",
+    "text": "NOMENCLATURAS\n\nAquecimento: Quente, Frio, Morno ou Amplo\n\nCampanhas: \n[CAMPANHA/PUBLICIDADE] [OBJETIVO] [POSICIONAMENTO] [NIVEL DE AQUECIMENTO PUBLICO] [IDADE] Descrição\nExemplos: \n[DGT] [CADASTRO] [REEL] [Q]  [25-45] Captação de leads\n\nConjunto de Anúncios: \nNÚMERO CONJUNTO - [POSICIONAMENTO/PUBLICIDADE] [NIVEL DE AQUECIMENTO] Nome do público\nExemplos: \n01 - [STORIES] [F] Interesses Ferramentas & Marketing\n\nAnúncios: AD000 - Descrição do anúncio",
+    "createdAt": "2026-09-11T02:03:35.992Z"
+  },
+  {
+    "id": "note_1789090785245_rhmen",
+    "videoId": "01 - CURSO SUBIDO DE TRÁFEGO/M002 - Tráfego para Meta Ads/6.1 Seleção de objetivos e metas de desempenho.mp4",
+    "timestamp": 1292.436231,
+    "timestampFormatted": "21:32",
+    "text": "Engajamento\n-Gerar interacoes com publicacoes\n-Aplicativos de mensagens",
+    "createdAt": "2026-09-11T01:39:45.245Z"
+  },
+  {
+    "id": "note_1789090566957_0wxwh",
+    "videoId": "01 - CURSO SUBIDO DE TRÁFEGO/M002 - Tráfego para Meta Ads/6.1 Seleção de objetivos e metas de desempenho.mp4",
+    "timestamp": 842.037965,
+    "timestampFormatted": "14:02",
+    "text": "Tráfego\n-Enviar  o maior volume de pessoas para um destino\n-Clique no link\n-Visualizacao da página",
+    "createdAt": "2026-09-11T01:36:06.957Z"
+  },
+  {
+    "id": "note_1789090317750_ponq7",
+    "videoId": "01 - CURSO SUBIDO DE TRÁFEGO/M002 - Tráfego para Meta Ads/6.1 Seleção de objetivos e metas de desempenho.mp4",
+    "timestamp": 396.156895,
+    "timestampFormatted": "06:36",
+    "text": "Reconhecimento:\n-Alcance\n-Impressoes\n-Incrementalidade da lembrança do anuncio",
+    "createdAt": "2026-09-11T01:31:57.750Z"
+  },
+  {
+    "id": "note_1789090222624_0f8up",
+    "videoId": "01 - CURSO SUBIDO DE TRÁFEGO/M002 - Tráfego para Meta Ads/6.1 Seleção de objetivos e metas de desempenho.mp4",
+    "timestamp": 229.685556,
+    "timestampFormatted": "03:49",
+    "text": "Escolher o objetivo de campanha correta",
+    "createdAt": "2026-09-11T01:30:22.624Z"
   },
   {
     "id": "note_1789023170023_tezj2",
@@ -14,5 +70,29 @@
     "timestampFormatted": "22:08",
     "text": "OS 3 TIPOS DE SEGMENTAÇÕES DE INTERESSE\n\nGrau de generalidade:\n\n- Especifico : TEM interesse\n- Meio especifico: PROVAVELMENTE tem interesse\n- Geral: POSSIVELMENTE tem interesse\n\n\nGrupos de interesse:\n\n- Ferramentas de email\n- Ferramentas de marketing\n- Empresários\n- Plataformas de E-commerce\n\n\nUnitário:\n\n- Um único interesse\n\n\nMuito louco:\n\n- Use a criatividade\n\n\nUtilizar limitação de público quando necessário\n\n\nCriar PÚBLICOS e GURPOS de interesses para a conta do cliente",
     "createdAt": "2026-09-10T06:52:50.024Z"
+  },
+  {
+    "id": "note_1789022319398_nhfl5",
+    "videoId": "01 - CURSO SUBIDO DE TRÁFEGO/M002 - Tráfego para Meta Ads/5.1 Públicos Personalizados.mp4",
+    "timestamp": 3013.997667,
+    "timestampFormatted": "50:13",
+    "text": "Resumo: Públicos Personalizados no Meta Ads\n1. Dicas Essenciais\nCriação em Lote: Crie públicos com múltiplas retenções de uma só vez (1, 3, 7, 14, 30, 60, 90 e 180 dias) para poupar tempo.\n\nURLs Limpas: Ao rastrear URLs específicas, não insira https://. Use o domínio direto (ex: seusite.com.br/pagina).\n\nRefinamentos Úteis: Utilize condições \"E/OU\" para cruzar dados (ex: visitou a página de lives OU o blog) e refine por dispositivo (Mobile, Desktop, iOS, Android) ou frequência.\n\nListas com LTV: Sempre que subir listas de clientes (e-mail/telefone), inclua o Valor do Cliente (LTV) se possível. Isso qualifica a inteligência da plataforma para encontrar clientes similares mais valiosos.\n\n\n2. Práticas de Nomenclatura\nA nomenclatura deve ser padronizada para facilitar a identificação no Gerenciador de Anúncios. A estrutura ideal sugerida é:\n[FONTE] Ação do Usuário - Especificação - Tempo de Retenção\nUse colchetes para indicar a fonte de dados primária.\nSepare as variáveis com espaço, hífen e espaço ( - ).\n\n3. Tipos de Públicos para Criar\n\nPúblicos de Site (Requer Pixel)\n\nTipo de Público | Descrição | Exemplo de Nomenclatura\nVisitantes Gerais | Todos que acessaram qualquer página do site. | [SITE] Visitantes do Site - 30D\nPáginas Específicas | Acessaram URLs específicas (ex: Blog, Carrinho, Obrigado). | [SITE] Visitou - Lives Semanais - 7D\nTempo Gasto | Top 5%, 10% ou 25% dos usuários com maior tempo de sessão. | [SITE] Visitantes do Site - 5% - 180D\nEventos Específicos | Usuários que dispararam eventos padrão (ex: Lead). | [SITE] Visitou - Lead - 180D\n\n\nPúblicos de Aplicativo\n\nTipo de Público | Descrição| Exemplo de Nomenclatura\nAbertura | Qualquer pessoa que abriu o aplicativo. | [APP] NomeDoApp - Abriu - 30D\nUsuários Ativos | Top 5%, 10% ou 25% dos usuários mais ativos no app. | [APP] NomeDoApp - Ativos - 5% - 30D\nValor de Compra | Os usuários que mais gastaram financeiramente no app. | [APP] NomeDoApp - Valor - 25% - 30D\n\n\nPúblicos de Catálogo (E-commerce)\n\nTipo de Público | Descrição | Exemplo de Nomenclatura\nVisualização | Viram produtos de um conjunto específico. | [CATÁLOGO] Conjunto Camisetas - Viram - 14D\nCarrinho | Adicionaram produtos do conjunto ao carrinho. | [CATÁLOGO] Conjunto Camisetas - Carrinho - 14D\nCompra | Finalizaram a compra dos produtos selecionados. | [CATÁLOGO] Conjunto Camisetas - Compraram - 30D\n\nLista de Clientes\nPúblicos criados a partir do upload de arquivos CSV contendo e-mails ou números de telefone (com ou sem a coluna de valor do cliente).",
+    "createdAt": "2026-09-10T06:38:39.398Z"
+  },
+  {
+    "id": "note_1789401648925_6ftnz",
+    "videoId": "02 - CURSO SUBIDO DE PROSPECÇÕES/2.1 - Missão prática.mp4",
+    "timestamp": 206.368886,
+    "timestampFormatted": "03:26",
+    "text": "Utilizar #Subido",
+    "createdAt": "2026-09-14T16:00:48.925Z"
+  },
+  {
+    "id": "note_1789418496523_zuvip",
+    "videoId": "02 - CURSO SUBIDO DE PROSPECÇÕES/3.1 - Definindo seus entregáveis.mp4",
+    "timestamp": 372.824215,
+    "timestampFormatted": "06:12",
+    "text": "Configuração\nCriação\nPesquisa / Referências\nFeedback / Relatórios / Reuniões\nOtimizações",
+    "createdAt": "2026-09-14T20:41:36.523Z"
   }
 ]

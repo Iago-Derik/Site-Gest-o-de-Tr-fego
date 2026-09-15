@@ -1393,7 +1393,6 @@ const server = http.createServer(async (req, res) => {
       metrics: [
         { name: "sessions" },
         { name: "conversions" },
-        { name: "activeUsers" },
         { name: "totalUsers" },
         { name: "newUsers" },
         { name: "screenPageViews" },

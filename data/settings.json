@@ -2,7 +2,7 @@
   "theme": "dark",
   "accentColor": "indigo",
   "autoPlayNext": true,
-  "playbackSpeed": 1.75,
+  "playbackSpeed": 1.5,
   "volume": 1,
   "sidebarCollapsed": false
 }
