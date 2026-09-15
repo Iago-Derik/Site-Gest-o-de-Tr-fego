@@ -22,7 +22,7 @@ function getSortKey(str) {
   return str.replace(/(\d+)/g, (n) => n.padStart(6, "0")).toLowerCase();
 }
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   if (req.method !== "GET") return res.status(405).json({ error: "Method not allowed" });
 
   try {

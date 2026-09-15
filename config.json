@@ -1,6 +1,6 @@
 {
   "port": 3000,
-  "videosDir": "D:\\Vídeos telegram\\Curso Gestão de tráfego",
+  "videosDir": "",
   "remoteVideosUrl": "",
   "allowedExtensions": [
     ".mp4",
