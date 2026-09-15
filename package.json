@@ -17,6 +17,8 @@
   "author": "Iago Derik",
   "license": "MIT",
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1133.0",
+    "@supabase/supabase-js": "^2.116.0",
     "google-auth-library": "^11.0.2"
   }
 }

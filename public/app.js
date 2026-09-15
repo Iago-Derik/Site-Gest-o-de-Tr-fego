@@ -3051,7 +3051,7 @@ function initEventListeners() {
     el.modalSettingsBackdrop.classList.remove("open");
   });
 
-  // Save Directory
+  /* Save Directory
   el.btnSaveVideosDir.addEventListener("click", async () => {
     const newDir = el.cfgVideosDir.value.trim();
     if (!newDir) return;
@@ -3070,6 +3070,7 @@ function initEventListeners() {
       showToast("Erro ao salvar diretório", "danger");
     }
   });
+  */
 
   // Save Remote Videos URL
   el.btnSaveRemoteVideosUrl?.addEventListener("click", async () => {
