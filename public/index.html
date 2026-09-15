@@ -9,9 +9,18 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <!-- Supabase CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 
 <body class="theme-dark">
+<!-- TELA DE LOGIN (Oculta o app até autenticar) -->
+  <div id="authScreen" style="position: fixed; inset: 0; background: var(--bg-app); z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px;">
+    <h2>Video Hub Pro</h2>
+    <p style="color: var(--text-muted);">Faça login para acessar sua plataforma.</p>
+    <button id="btnLoginGoogle" class="btn btn-primary">Entrar com Google</button>
+  </div>
+
 
   <!-- TOP NAVIGATION BAR -->
   <header class="app-header">

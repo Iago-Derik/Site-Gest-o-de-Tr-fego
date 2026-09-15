@@ -2,6 +2,56 @@
  * VIDEO HUB PRO 2.0 - Client Application Engine
  */
 
+// --- CONFIGURAÇÃO DO SUPABASE ---
+const SUPABASE_URL = "https://olofdrngtjktrvgopyun.supabase.co/rest/v1/";
+const SUPABASE_ANON_KEY = "sb_publishable_5J0eCJlr7nPZcvIpopnhyQ_aHdlFfB4";
+
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// Intercepta todos os "fetches" para adicionar o Token de Autenticação
+const originalFetch = window.fetch;
+window.fetch = async function () {
+  let [resource, config] = arguments;
+  if (typeof resource === 'string' && resource.startsWith('/api/')) {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.access_token) {
+      config = config || {};
+      config.headers = config.headers || {};
+      config.headers['Authorization'] = `Bearer ${session.access_token}`;
+    }
+  }
+  return originalFetch.apply(this, [resource, config]);
+};
+
+// Lógica de Autenticação
+async function checkAuth() {
+  const { data: { session } } = await supabase.auth.getSession();
+  const authScreen = document.getElementById("authScreen");
+  
+  if (session) {
+    authScreen.style.display = "none";
+    fetchInitialData(); // Só carrega os dados DEPOIS de logado
+  } else {
+    authScreen.style.display = "flex";
+  }
+}
+
+document.getElementById("btnLoginGoogle").addEventListener("click", async () => {
+  await supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: {
+      redirectTo: window.location.origin
+    }
+  });
+});
+
+// Removemos a chamada do fetchInitialData() do final do arquivo antigo e controlamos por aqui
+document.addEventListener("DOMContentLoaded", () => {
+  initEventListeners();
+  checkAuth();
+});
+// ---------------------------------
+
 // Application Global State
 const state = {
   coursesData: null,
@@ -3156,5 +3206,4 @@ function initEventListeners() {
 
 document.addEventListener("DOMContentLoaded", () => {
   initEventListeners();
-  fetchInitialData();
 });
