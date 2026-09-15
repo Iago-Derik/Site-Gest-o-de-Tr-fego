@@ -335,12 +335,30 @@ async function fetchMeta(pathname, query = {}) {
 }
 
 function getGoogleServiceAccount() {
+  // Em produção (Vercel), não há disco persistente para um arquivo de credenciais,
+  // então lemos o JSON inteiro da service account de uma variável de ambiente.
+  const credentialsJson = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
+  if (credentialsJson) {
+    let credentials;
+    try {
+      credentials = JSON.parse(credentialsJson);
+    } catch (e) {
+      const error = new Error(
+        "GOOGLE_SERVICE_ACCOUNT_JSON não é um JSON válido. Confira se colou o conteúdo do arquivo inteiro, sem quebras.",
+      );
+      error.statusCode = 503;
+      throw error;
+    }
+    return new GoogleAuth({ credentials, scopes: [GOOGLE_ANALYTICS_SCOPE] });
+  }
+
+  // Fallback: uso local, lendo o arquivo do disco como antes.
   const keyFilename =
     process.env.GOOGLE_APPLICATION_CREDENTIALS ||
     path.join(ROOT_DIR, "credentials", "ga4-api-123456.json");
   if (!fs.existsSync(keyFilename)) {
     const error = new Error(
-      `Arquivo da service account não encontrado: ${keyFilename}`,
+      `Nenhuma credencial do GA4 encontrada. Defina GOOGLE_SERVICE_ACCOUNT_JSON (produção) ou GOOGLE_APPLICATION_CREDENTIALS (local). Arquivo local esperado: ${keyFilename}`,
     );
     error.statusCode = 503;
     throw error;
