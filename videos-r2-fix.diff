@@ -1,0 +1,168 @@
+diff --git a/server.js b/server.js
+index b1047a5..0d22d54 100644
+--- a/server.js
++++ b/server.js
+@@ -5,6 +5,7 @@ const url = require("url");
+ const crypto = require("crypto");
+ const { exec } = require("child_process");
+ const { GoogleAuth } = require("google-auth-library");
++const { S3Client, ListObjectsV2Command } = require("@aws-sdk/client-s3");
+ 
+ const ROOT_DIR = __dirname;
+ 
+@@ -51,6 +52,84 @@ let config = {
+   allowedExtensions: [".mp4", ".mkv", ".webm", ".avi", ".mov", ".m4v"],
+ };
+ 
++// --- Cloudflare R2 (usado quando os vídeos não estão mais no disco local, ex.: Vercel) ---
++function isR2Configured() {
++  return Boolean(
++    process.env.R2_ACCOUNT_ID &&
++      process.env.R2_ACCESS_KEY_ID &&
++      process.env.R2_SECRET_ACCESS_KEY &&
++      process.env.R2_BUCKET_NAME &&
++      process.env.R2_PUBLIC_URL,
++  );
++}
++
++function getR2Client() {
++  return new S3Client({
++    region: "auto",
++    endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
++    credentials: {
++      accessKeyId: process.env.R2_ACCESS_KEY_ID,
++      secretAccessKey: process.env.R2_SECRET_ACCESS_KEY,
++    },
++  });
++}
++
++// Lista os objetos do bucket R2 e devolve no mesmo formato que scanDirectory()
++// produz para arquivos locais, para que getCoursesData() possa usar qualquer um dos dois.
++async function scanR2Videos() {
++  const s3 = getR2Client();
++  const results = [];
++  let ContinuationToken;
++
++  do {
++    const response = await s3.send(
++      new ListObjectsV2Command({
++        Bucket: process.env.R2_BUCKET_NAME,
++        ContinuationToken,
++      }),
++    );
++    for (const obj of response.Contents || []) {
++      const ext = path.extname(obj.Key).toLowerCase();
++      if (!config.allowedExtensions.includes(ext)) continue;
++
++      const parts = obj.Key.split("/");
++      let courseName = "Curso Principal";
++      let moduleName = "Aulas Gerais";
++      let lessonFileName = parts[parts.length - 1];
++
++      if (parts.length >= 3) {
++        courseName = parts[0];
++        moduleName = parts[1];
++        lessonFileName = parts.slice(2).join(" - ");
++      } else if (parts.length === 2) {
++        moduleName = parts[0];
++        lessonFileName = parts[1];
++      }
++
++      results.push({
++        id: obj.Key,
++        fileName: parts[parts.length - 1],
++        rawTitle: lessonFileName.replace(/\.[a-zA-Z0-9]+$/, ""),
++        cleanTitle: cleanTitle(lessonFileName),
++        course: courseName,
++        cleanCourse: cleanTitle(courseName),
++        module: moduleName,
++        cleanModule: cleanModuleTitle(moduleName),
++        ext,
++        size: obj.Size || 0,
++        mtime: obj.LastModified ? new Date(obj.LastModified).getTime() : 0,
++        sortKey: getSortKey(obj.Key),
++        remoteUrl: `${process.env.R2_PUBLIC_URL.replace(/\/$/, "")}/${encodeURI(obj.Key)}`,
++      });
++    }
++    ContinuationToken = response.IsTruncated
++      ? response.NextContinuationToken
++      : undefined;
++  } while (ContinuationToken);
++
++  return results;
++}
++
+ function loadConfig() {
+   try {
+     if (fs.existsSync(CONFIG_FILE)) {
+@@ -415,9 +494,10 @@ function scanDirectory(dir, baseDir = dir) {
+ }
+ 
+ // Get list of courses with hierarchy
+-function getCoursesData() {
+-  const vDir = getVideosAbsDir();
+-  const allVideos = scanDirectory(vDir);
++async function getCoursesData() {
++  const allVideos = isR2Configured()
++    ? await scanR2Videos()
++    : scanDirectory(getVideosAbsDir());
+ 
+   // Sort videos naturally
+   allVideos.sort((a, b) => a.sortKey.localeCompare(b.sortKey));
+@@ -465,11 +545,17 @@ function getCoursesData() {
+       Array.isArray(favoritesData) && favoritesData.includes(video.id);
+     const videoNotes = (notesData || []).filter((n) => n.videoId === video.id);
+ 
+-    // Se houver um prefixo/URL base remoto configurado (CDN, S3, R2, etc.), usa a URL remota
++    // Se o vídeo veio do R2 (já traz remoteUrl) ou há um prefixo remoto configurado
++    // (CDN, S3, R2, etc.) manualmente, usa a URL remota direto. Senão, serve do disco local.
+     const videoUrl =
+-      config.remoteVideosUrl && config.remoteVideosUrl.trim() !== ""
++      video.remoteUrl ||
++      (config.remoteVideosUrl && config.remoteVideosUrl.trim() !== ""
+         ? `${config.remoteVideosUrl.replace(/\/$/, "")}/${video.id}`
+-        : `/api/video?id=${encodeURIComponent(video.id)}`;
++        : `/api/video?id=${encodeURIComponent(video.id)}`);
++
++    const thumbUrl = video.remoteUrl
++      ? video.remoteUrl // R2 não gera thumbnail automático; usa o próprio vídeo por ora
++      : `/api/thumbnail?id=${encodeURIComponent(video.id)}`;
+ 
+     mData.videos.push({
+       id: video.id,
+@@ -492,7 +578,7 @@ function getCoursesData() {
+       isFavorite,
+       notesCount: videoNotes.length,
+       videoUrl,
+-      thumbUrl: `/api/thumbnail?id=${encodeURIComponent(video.id)}`,
++      thumbUrl,
+     });
+   }
+ 
+@@ -744,7 +830,7 @@ const server = http.createServer(async (req, res) => {
+ 
+   // GET /api/videos - Return all courses, modules, and lessons
+   if (pathname === "/api/videos" && method === "GET") {
+-    const data = getCoursesData();
++    const data = await getCoursesData();
+     res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
+     res.end(JSON.stringify(data));
+     return;
+@@ -754,7 +840,7 @@ const server = http.createServer(async (req, res) => {
+   if (pathname === "/api/rescan" && method === "POST") {
+     metaCache = {};
+     writeJSON(META_CACHE_FILE, metaCache);
+-    const data = getCoursesData();
++    const data = await getCoursesData();
+     res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
+     res.end(
+       JSON.stringify({
+@@ -987,7 +1073,7 @@ const server = http.createServer(async (req, res) => {
+   if (pathname === "/api/notes" || pathname.startsWith("/api/notes/")) {
+     // GET /api/notes/export - Export notes as Markdown
+     if (pathname === "/api/notes/export" && method === "GET") {
+-      const coursesData = getCoursesData();
++      const coursesData = await getCoursesData();
+       let md = `# Anotações de Aulas - Video Hub\n\n*Exportado em: ${new Date().toLocaleString("pt-BR")}*\n\n---\n\n`;
+ 
+       const videoMap = new Map();
