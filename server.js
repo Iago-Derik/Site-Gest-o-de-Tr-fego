@@ -5,7 +5,7 @@ const url = require("url");
 const crypto = require("crypto");
 const { exec } = require("child_process");
 const { GoogleAuth } = require("google-auth-library");
-const { S3Client, ListObjectsV2Command } = require("@aws-sdk/client-s3");
+const { S3Client, ListObjectsV2Command, PutObjectCommand, HeadObjectCommand } = require("@aws-sdk/client-s3");
 
 const ROOT_DIR = __dirname;
 
@@ -128,6 +128,33 @@ async function scanR2Videos() {
   } while (ContinuationToken);
 
   return results;
+}
+
+// Verifica se já existe uma thumbnail salva no R2 para esse vídeo.
+// Retorna a URL pública se existir, ou null se não existir ainda.
+async function getR2ThumbUrl(hash) {
+  const key = `thumbs/${hash}.jpg`;
+  try {
+    await getR2Client().send(
+      new HeadObjectCommand({ Bucket: process.env.R2_BUCKET_NAME, Key: key }),
+    );
+    return `${process.env.R2_PUBLIC_URL.replace(/\/$/, "")}/${key}`;
+  } catch (e) {
+    return null; // não existe ainda (ou erro de acesso) — segue com o fallback
+  }
+}
+
+// Salva a thumbnail capturada pelo navegador no R2, na pasta thumbs/.
+async function uploadR2Thumb(hash, buffer) {
+  const key = `thumbs/${hash}.jpg`;
+  await getR2Client().send(
+    new PutObjectCommand({
+      Bucket: process.env.R2_BUCKET_NAME,
+      Key: key,
+      Body: buffer,
+      ContentType: "image/jpeg",
+    }),
+  );
 }
 
 function loadConfig() {
@@ -571,9 +598,7 @@ async function getCoursesData() {
         ? `${config.remoteVideosUrl.replace(/\/$/, "")}/${video.id}`
         : `/api/video?id=${encodeURIComponent(video.id)}`);
 
-    const thumbUrl = video.remoteUrl
-      ? video.remoteUrl // R2 não gera thumbnail automático; usa o próprio vídeo por ora
-      : `/api/thumbnail?id=${encodeURIComponent(video.id)}`;
+    const thumbUrl = `/api/thumbnail?id=${encodeURIComponent(video.id)}`;
 
     mData.videos.push({
       id: video.id,
@@ -950,6 +975,24 @@ const server = http.createServer(async (req, res) => {
     }
 
     const hash = crypto.createHash("md5").update(videoId).digest("hex");
+
+    // Se o R2 estiver configurado, procura a thumbnail lá primeiro
+    if (isR2Configured()) {
+      const r2ThumbUrl = await getR2ThumbUrl(hash);
+      if (r2ThumbUrl) {
+        res.writeHead(302, { Location: r2ThumbUrl });
+        res.end();
+        return;
+      }
+      // Ainda não foi gerada (vídeo nunca foi assistido) — mostra o SVG com o título
+      const rawName = path.basename(videoId);
+      const cleaned = cleanTitle(rawName);
+      const svg = generateFallbackThumbSVG(cleaned);
+      res.writeHead(200, { "Content-Type": "image/svg+xml; charset=utf-8" });
+      res.end(svg);
+      return;
+    }
+
     const thumbFile = path.join(THUMBS_DIR, `${hash}.jpg`);
 
     // Check if thumbnail image already exists
@@ -999,20 +1042,26 @@ const server = http.createServer(async (req, res) => {
 
   // POST /api/thumbnail/upload - Client canvas-captured thumbnail upload
   if (pathname === "/api/thumbnail/upload" && method === "POST") {
-    parseJSONBody((err, data) => {
+    parseJSONBody(async (err, data) => {
       if (err || !data.videoId || !data.imageBase64) {
         res.writeHead(400, { "Content-Type": "application/json" });
         res.end(JSON.stringify({ error: "Dados inválidos" }));
         return;
       }
       const hash = crypto.createHash("md5").update(data.videoId).digest("hex");
-      const thumbFile = path.join(THUMBS_DIR, `${hash}.jpg`);
       const base64Data = data.imageBase64.replace(
         /^data:image\/\w+;base64,/,
         "",
       );
+      const buffer = Buffer.from(base64Data, "base64");
+
       try {
-        fs.writeFileSync(thumbFile, Buffer.from(base64Data, "base64"));
+        if (isR2Configured()) {
+          await uploadR2Thumb(hash, buffer);
+        } else {
+          const thumbFile = path.join(THUMBS_DIR, `${hash}.jpg`);
+          fs.writeFileSync(thumbFile, buffer);
+        }
         res.writeHead(200, { "Content-Type": "application/json" });
         res.end(
           JSON.stringify({
