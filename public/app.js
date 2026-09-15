@@ -3,17 +3,17 @@
  */
 
 // --- CONFIGURAÇÃO DO SUPABASE ---
-const SUPABASE_URL = "https://olofdrngtjktrvgopyun.supabase.co/rest/v1/";
+const SUPABASE_URL = "https://olofdrngtjktrvgopyun.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_5J0eCJlr7nPZcvIpopnhyQ_aHdlFfB4";
 
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // Intercepta todos os "fetches" para adicionar o Token de Autenticação
 const originalFetch = window.fetch;
 window.fetch = async function () {
   let [resource, config] = arguments;
   if (typeof resource === 'string' && resource.startsWith('/api/')) {
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { session } } = await supabaseClient.auth.getSession();
     if (session?.access_token) {
       config = config || {};
       config.headers = config.headers || {};
@@ -25,7 +25,7 @@ window.fetch = async function () {
 
 // Lógica de Autenticação
 async function checkAuth() {
-  const { data: { session } } = await supabase.auth.getSession();
+  const { data: { session } } = await supabaseClient.auth.getSession();
   const authScreen = document.getElementById("authScreen");
   
   if (session) {
@@ -37,7 +37,7 @@ async function checkAuth() {
 }
 
 document.getElementById("btnLoginGoogle").addEventListener("click", async () => {
-  await supabase.auth.signInWithOAuth({
+  await supabaseClient.auth.signInWithOAuth({
     provider: 'google',
     options: {
       redirectTo: window.location.origin
@@ -45,7 +45,6 @@ document.getElementById("btnLoginGoogle").addEventListener("click", async () => 
   });
 });
 
-// Removemos a chamada do fetchInitialData() do final do arquivo antigo e controlamos por aqui
 document.addEventListener("DOMContentLoaded", () => {
   initEventListeners();
   checkAuth();
@@ -3199,11 +3198,3 @@ function initEventListeners() {
     }
   });
 }
-
-// --------------------------------------------------------------------------
-// INITIALIZATION
-// --------------------------------------------------------------------------
-
-document.addEventListener("DOMContentLoaded", () => {
-  initEventListeners();
-});
