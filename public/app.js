@@ -389,13 +389,13 @@ async function fetchInitialData() {
     state.notes = notesRes;
     state.favorites = favsRes;
     state.settings = { ...state.settings, ...settingsRes };
-    state.workspace = workspaceRes || {
+    state.workspace = (workspaceRes && workspaceRes.clients) ? workspaceRes : {
       clients: [],
       campaigns: [],
       documents: [],
       reports: [],
     };
-    state.workspace.reports ||= [];
+    state.workspace.reports = state.workspace.reports || [];
 
     // Restore saved speed
     const savedSpeed = localStorage.getItem("videohub_speed");
