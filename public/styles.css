@@ -79,6 +79,18 @@
   padding: 0;
 }
 
+/* Garante que o atributo [hidden] sempre esconda o elemento, mesmo quando
+   uma regra de layout (display: flex/grid) declarada depois no arquivo
+   teria, de outra forma, precedência sobre o estilo padrão do navegador. */
+[hidden] {
+  display: none !important;
+}
+
+/* Trava o scroll da página por trás do drawer do menu lateral no mobile. */
+body.sidebar-drawer-open {
+  overflow: hidden;
+}
+
 body {
   font-family:
     "Plus Jakarta Sans",
@@ -381,6 +393,7 @@ body {
 
 .brand-icon {
   position: relative;
+  flex-shrink: 0;
   width: 38px;
   height: 38px;
   background: linear-gradient(
@@ -427,12 +440,14 @@ body {
   display: flex;
   align-items: center;
   gap: 8px;
+  min-width: 0;
 }
 
 .brand-name {
   font-weight: 800;
   font-size: 16px;
   letter-spacing: 0.5px;
+  white-space: nowrap;
   background: linear-gradient(90deg, #ffffff, #cbd5e1);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -443,6 +458,8 @@ body {
   font-weight: 700;
   padding: 2px 7px;
   border-radius: 20px;
+  white-space: nowrap;
+  flex-shrink: 0;
   background: rgba(124, 92, 255, 0.2);
   color: var(--accent-primary);
   border: 1px solid rgba(124, 92, 255, 0.4);
@@ -2219,7 +2236,8 @@ body {
   color: var(--text-primary);
   white-space: pre-wrap;
   word-break: break-word;
-  line-height: 1.5;
+  line-height: 1.65;
+  max-width: 78ch;
 }
 
 .note-item-actions {
