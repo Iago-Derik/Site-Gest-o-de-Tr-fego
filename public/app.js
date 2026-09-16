@@ -24,30 +24,100 @@ window.fetch = async function () {
 };
 
 // Lógica de Autenticação
+function showScreen(screenEl) {
+  ["authScreen", "accessDeniedScreen"].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = el === screenEl ? "flex" : "none";
+  });
+}
+
 async function checkAuth() {
-  const { data: { session } } = await supabaseClient.auth.getSession();
   const authScreen = document.getElementById("authScreen");
-  
-  if (session) {
-    authScreen.style.display = "none";
-    fetchInitialData(); // Só carrega os dados DEPOIS de logado
-  } else {
-    authScreen.style.display = "flex";
+  const deniedScreen = document.getElementById("accessDeniedScreen");
+  const { data: { session } } = await supabaseClient.auth.getSession();
+
+  if (!session) {
+    showScreen(authScreen);
+    return;
   }
+
+  try {
+    const meRes = await fetch("/api/me");
+    const me = await meRes.json();
+    if (!me.allowed) {
+      const emailLabel = document.getElementById("deniedEmailLabel");
+      if (emailLabel) emailLabel.textContent = me.email || session.user?.email || "";
+      showScreen(deniedScreen);
+      return;
+    }
+  } catch (err) {
+    console.error("Não foi possível verificar a permissão de acesso:", err);
+    showScreen(deniedScreen);
+    return;
+  }
+
+  authScreen.style.display = "none";
+  deniedScreen.style.display = "none";
+  setupAccountMenu(session.user);
+  fetchInitialData(); // Só carrega os dados DEPOIS de logado e autorizado
+}
+
+function setupAccountMenu(user) {
+  const email = user?.email || "";
+  const initial = email.charAt(0).toUpperCase() || "?";
+  const emailLabel = document.getElementById("accountMenuEmail");
+  const avatar = document.getElementById("accountAvatarInitial");
+  if (emailLabel) emailLabel.textContent = email;
+  if (avatar) avatar.textContent = initial;
+  if (el.cfgAccountEmail) el.cfgAccountEmail.textContent = email;
+  if (el.cfgAccountAvatar) el.cfgAccountAvatar.textContent = initial;
+}
+
+async function handleSignOut() {
+  await supabaseClient.auth.signOut();
+  window.location.reload();
+}
+
+async function handleSwitchAccount() {
+  await supabaseClient.auth.signOut();
+  await supabaseClient.auth.signInWithOAuth({
+    provider: "google",
+    options: {
+      redirectTo: window.location.origin,
+      queryParams: { prompt: "select_account" },
+    },
+  });
 }
 
 document.getElementById("btnLoginGoogle").addEventListener("click", async () => {
   await supabaseClient.auth.signInWithOAuth({
-    provider: 'google',
+    provider: "google",
     options: {
-      redirectTo: window.location.origin
-    }
+      redirectTo: window.location.origin,
+      queryParams: { prompt: "select_account" },
+    },
   });
 });
+
+document.getElementById("btnDeniedSignOut")?.addEventListener("click", handleSwitchAccount);
 
 document.addEventListener("DOMContentLoaded", () => {
   initEventListeners();
   checkAuth();
+
+  const accountBtn = document.getElementById("btnAccountMenu");
+  const accountMenu = document.getElementById("accountMenuDropdown");
+  accountBtn?.addEventListener("click", (event) => {
+    event.stopPropagation();
+    accountMenu.classList.toggle("open");
+  });
+  document.addEventListener("click", (event) => {
+    if (accountMenu && !accountMenu.contains(event.target) && event.target !== accountBtn) {
+      accountMenu.classList.remove("open");
+    }
+  });
+  document.getElementById("btnSwitchAccount")?.addEventListener("click", handleSwitchAccount);
+  document.getElementById("btnSignOut")?.addEventListener("click", handleSignOut);
 });
 // ---------------------------------
 
@@ -211,6 +281,7 @@ const el = {
   lessonNotesList: document.getElementById("lessonNotesList"),
 
   // Sidebar
+  playerLayout: document.getElementById("playerLayout"),
   playerSidebar: document.getElementById("playerSidebar"),
   sidebarProgressText: document.getElementById("sidebarProgressText"),
   btnCollapseSidebar: document.getElementById("btnCollapseSidebar"),
@@ -253,18 +324,26 @@ const el = {
   metaImportStatus: document.getElementById("metaImportStatus"),
   gaPropertyId: document.getElementById("gaPropertyId"),
   gaDatePreset: document.getElementById("gaDatePreset"),
+  gaGroupBy: document.getElementById("gaGroupBy"),
   btnImportGa: document.getElementById("btnImportGa"),
   gaImportStatus: document.getElementById("gaImportStatus"),
+  metaMetricPicker: document.getElementById("metaMetricPicker"),
+  gaMetricPicker: document.getElementById("gaMetricPicker"),
+  metaChartType: document.getElementById("metaChartType"),
+  gaChartType: document.getElementById("gaChartType"),
+  lookerStudioUrl: document.getElementById("lookerStudioUrl"),
+  btnSaveLookerUrl: document.getElementById("btnSaveLookerUrl"),
+  lookerEmbedContainer: document.getElementById("lookerEmbedContainer"),
 
   // Modals & Toasts
   modalSettingsBackdrop: document.getElementById("modalSettingsBackdrop"),
   btnCloseSettings: document.getElementById("btnCloseSettings"),
   btnConfirmCloseSettings: document.getElementById("btnConfirmCloseSettings"),
-  cfgVideosDir: document.getElementById("cfgVideosDir"),
-  btnSaveVideosDir: document.getElementById("btnSaveVideosDir"),
-  cfgAbsDirHint: document.getElementById("cfgAbsDirHint"),
-  cfgRemoteVideosUrl: document.getElementById("cfgRemoteVideosUrl"),
-  btnSaveRemoteVideosUrl: document.getElementById("btnSaveRemoteVideosUrl"),
+  cfgAccountAvatar: document.getElementById("cfgAccountAvatar"),
+  cfgAccountEmail: document.getElementById("cfgAccountEmail"),
+  btnCfgSwitchAccount: document.getElementById("btnCfgSwitchAccount"),
+  btnCfgSignOut: document.getElementById("btnCfgSignOut"),
+  cfgMetaConnectionStatus: document.getElementById("cfgMetaConnectionStatus"),
   accentColorPicker: document.getElementById("accentColorPicker"),
   cfgAutoPlayNext: document.getElementById("cfgAutoPlayNext"),
   btnResetProgress: document.getElementById("btnResetProgress"),
@@ -524,14 +603,6 @@ async function fetchInitialData() {
     const savedSpeed = localStorage.getItem("videohub_speed");
     if (savedSpeed) state.settings.playbackSpeed = parseFloat(savedSpeed);
 
-    if (configRes && configRes.videosDir) {
-      el.cfgVideosDir.value = configRes.videosDir;
-      el.cfgAbsDirHint.textContent = `Caminho: ${configRes.videosAbsDir || configRes.videosDir}`;
-    }
-    if (configRes && typeof configRes.remoteVideosUrl === "string") {
-      el.cfgRemoteVideosUrl.value = configRes.remoteVideosUrl;
-    }
-
     applySettings(state.settings);
 
     // Initial course selection
@@ -664,6 +735,12 @@ function applySettings(s) {
     el.mainVideoPlayer.volume = s.volume;
     el.ctrlVolumeSlider.value = s.volume;
   }
+  applySidebarCollapsed(Boolean(s.sidebarCollapsed));
+}
+
+function applySidebarCollapsed(collapsed) {
+  el.playerSidebar?.classList.toggle("collapsed", collapsed);
+  el.playerLayout?.classList.toggle("sidebar-collapsed", collapsed);
 }
 
 // --------------------------------------------------------------------------
@@ -810,19 +887,219 @@ function renderWorkDocuments() {
     ? docs
         .map((doc) => {
           const client = clients.find((item) => item.id === doc.clientId);
-          return `<article class="work-document-card"><div class="document-card-icon">DOC</div><div><span class="eyebrow-label">${escapeHTML(doc.kind || "MATERIAL")}</span><h3>${escapeHTML(doc.name)}</h3><p>Cliente: <strong>${escapeHTML(client?.name || "Não associado")}</strong></p><small>${escapeHTML(doc.status || "Rascunho")}</small></div><a class="btn btn-ghost btn-sm" href="${escapeHTML(doc.url || "#")}" target="_blank" rel="noreferrer">Abrir</a></article>`;
+          const sizeLabel = doc.fileSize
+            ? `<small>${(doc.fileSize / 1024 / 1024).toFixed(1)}MB</small>`
+            : "";
+          const action = doc.storageKey
+            ? `<button class="btn btn-ghost btn-sm" data-download-doc="${escapeHTML(doc.id)}">Baixar</button>`
+            : `<a class="btn btn-ghost btn-sm" href="${escapeHTML(doc.url || "#")}" target="_blank" rel="noreferrer">Abrir</a>`;
+          return `<article class="work-document-card"><div class="document-card-icon">DOC</div><div><span class="eyebrow-label">${escapeHTML(doc.kind || "MATERIAL")}</span><h3>${escapeHTML(doc.name)}</h3><p>Cliente: <strong>${escapeHTML(client?.name || "Não associado")}</strong></p><small>${escapeHTML(doc.status || "Rascunho")}</small>${sizeLabel}</div>${action}</article>`;
         })
         .join("")
     : `<div class="work-empty-state compact"><span class="work-empty-icon">DOC</span><h2>Nenhum documento encontrado</h2><p>Adicione uma proposta, briefing, apresentação ou relatório e associe-o a um cliente.</p></div>`;
+  el.workDocumentsGrid.querySelectorAll("[data-download-doc]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const doc = docs.find((item) => item.id === btn.dataset.downloadDoc);
+      if (doc) downloadDocument(doc);
+    });
+  });
+}
+
+async function downloadDocument(doc) {
+  try {
+    const response = await fetch(`/api/documents/download?id=${encodeURIComponent(doc.id)}`);
+    if (!response.ok) throw new Error("Não foi possível baixar o arquivo");
+    const blob = await response.blob();
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = doc.fileName || doc.name;
+    link.click();
+    URL.revokeObjectURL(link.href);
+  } catch (err) {
+    showToast(err.message, "danger");
+  }
+}
+
+// --------------------------------------------------------------------------
+// DASHBOARD BUILDER - seleção de métricas e gráficos (Meta Ads / GA4)
+// --------------------------------------------------------------------------
+const META_METRIC_OPTIONS = [
+  { key: "impressions", label: "Impressões", default: true },
+  { key: "reach", label: "Alcance", default: false },
+  { key: "clicks", label: "Cliques", default: true },
+  { key: "unique_clicks", label: "Cliques únicos", default: false },
+  { key: "spend", label: "Investimento", default: true },
+  { key: "cpm", label: "CPM", default: false },
+  { key: "cpc", label: "CPC", default: false },
+  { key: "ctr", label: "CTR", default: false },
+  { key: "frequency", label: "Frequência", default: false },
+];
+
+const GA4_METRIC_OPTIONS = [
+  { key: "sessions", label: "Sessões", default: true },
+  { key: "totalUsers", label: "Usuários totais", default: true },
+  { key: "newUsers", label: "Novos usuários", default: false },
+  { key: "conversions", label: "Conversões", default: true },
+  { key: "screenPageViews", label: "Visualizações de página", default: false },
+  { key: "engagementRate", label: "Taxa de engajamento", default: false },
+  { key: "bounceRate", label: "Taxa de rejeição", default: false },
+  { key: "eventCount", label: "Eventos", default: false },
+];
+
+function renderMetricPicker(container, options, storageKey) {
+  if (!container) return;
+  if (!state.selectedMetrics) state.selectedMetrics = {};
+  if (!state.selectedMetrics[storageKey]) {
+    state.selectedMetrics[storageKey] = options.filter((o) => o.default).map((o) => o.key);
+  }
+  const selected = state.selectedMetrics[storageKey];
+  container.innerHTML =
+    `<span class="metric-picker-label">Métricas do gráfico</span>` +
+    options
+      .map(
+        (opt) =>
+          `<label class="metric-picker-item"><input type="checkbox" value="${opt.key}" ${selected.includes(opt.key) ? "checked" : ""}><span>${escapeHTML(opt.label)}</span></label>`,
+      )
+      .join("");
+  container.querySelectorAll('input[type="checkbox"]').forEach((box) => {
+    box.addEventListener("change", () => {
+      const current = new Set(state.selectedMetrics[storageKey]);
+      if (box.checked) current.add(box.value);
+      else current.delete(box.value);
+      state.selectedMetrics[storageKey] = Array.from(current);
+    });
+  });
+}
+
+function renderMetricPickers() {
+  renderMetricPicker(el.metaMetricPicker, META_METRIC_OPTIONS, "meta");
+  renderMetricPicker(el.gaMetricPicker, GA4_METRIC_OPTIONS, "ga4");
+}
+
+function getSelectedMetrics(storageKey, fallback) {
+  return state.selectedMetrics?.[storageKey]?.length
+    ? state.selectedMetrics[storageKey]
+    : fallback;
+}
+
+const CHART_PALETTE = ["#6366f1", "#06b6d4", "#10b981", "#f59e0b", "#f43f5e", "#a855f7"];
+const chartInstances = {};
+
+function renderMetricsChart(canvasId, rows, xKey, metricKeys, chartType, labelMap) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas || typeof Chart === "undefined") return;
+  if (chartInstances[canvasId]) {
+    chartInstances[canvasId].destroy();
+    delete chartInstances[canvasId];
+  }
+  if (!rows.length || !metricKeys.length) return;
+  const labels = rows.map((r) => String(r[xKey] ?? "—"));
+  const isCircular = chartType === "pie" || chartType === "doughnut";
+  const datasets = isCircular
+    ? [
+        {
+          label: labelMap[metricKeys[0]] || metricKeys[0],
+          data: rows.map((r) => Number(r[metricKeys[0]] || 0)),
+          backgroundColor: labels.map((_, i) => CHART_PALETTE[i % CHART_PALETTE.length]),
+        },
+      ]
+    : metricKeys.map((key, i) => ({
+        label: labelMap[key] || key,
+        data: rows.map((r) => Number(r[key] || 0)),
+        backgroundColor: chartType === "line" ? "transparent" : `${CHART_PALETTE[i % CHART_PALETTE.length]}cc`,
+        borderColor: CHART_PALETTE[i % CHART_PALETTE.length],
+        borderWidth: 2,
+        tension: 0.35,
+        fill: chartType === "line" ? false : true,
+      }));
+  chartInstances[canvasId] = new Chart(canvas, {
+    type: chartType,
+    data: { labels, datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { labels: { color: "#cbd5e1" } } },
+      scales: isCircular
+        ? {}
+        : {
+            x: { ticks: { color: "#94a3b8", maxRotation: 40 }, grid: { color: "rgba(255,255,255,0.05)" } },
+            y: { ticks: { color: "#94a3b8" }, grid: { color: "rgba(255,255,255,0.05)" } },
+          },
+    },
+  });
+}
+
+function renderInsightCharts() {
+  if (state.metaInsights) {
+    const rows = state.metaInsights.data || [];
+    const metrics = getSelectedMetrics("meta", ["impressions", "clicks", "spend"]);
+    const labelMap = Object.fromEntries(META_METRIC_OPTIONS.map((o) => [o.key, o.label]));
+    const xKey = rows[0]?.campaign_name !== undefined ? "campaign_name" : "date_start";
+    renderMetricsChart(
+      "metaChartCanvas",
+      rows,
+      xKey,
+      metrics,
+      el.metaChartType?.value || "bar",
+      labelMap,
+    );
+  }
+  if (state.gaInsights) {
+    const rows = state.gaInsights.data || [];
+    const metrics = getSelectedMetrics("ga4", ["sessions", "conversions"]);
+    const labelMap = Object.fromEntries(GA4_METRIC_OPTIONS.map((o) => [o.key, o.label]));
+    const xKey = el.gaGroupBy?.value || "date";
+    renderMetricsChart(
+      "gaChartCanvas",
+      rows,
+      xKey,
+      metrics,
+      el.gaChartType?.value || "line",
+      labelMap,
+    );
+  }
+}
+
+function renderLookerEmbed() {
+  const client = (state.workspace.clients || []).find((c) => c.id === state.currentClientId) || state.workspace.clients?.[0];
+  if (el.lookerStudioUrl) el.lookerStudioUrl.value = client?.lookerStudioUrl || "";
+  if (el.lookerEmbedContainer) {
+    el.lookerEmbedContainer.innerHTML = client?.lookerStudioUrl
+      ? `<iframe src="${escapeHTML(client.lookerStudioUrl)}" loading="lazy" allowfullscreen></iframe>`
+      : `<p class="work-muted">Nenhum relatório do Looker Studio vinculado a este cliente ainda.</p>`;
+  }
+}
+
+async function saveLookerStudioUrl() {
+  const client = (state.workspace.clients || []).find((c) => c.id === state.currentClientId) || state.workspace.clients?.[0];
+  if (!client) {
+    showToast("Cadastre e selecione um cliente primeiro", "warning");
+    return;
+  }
+  const url = el.lookerStudioUrl.value.trim();
+  if (url && !/^https:\/\/lookerstudio\.google\.com\//.test(url)) {
+    showToast("Cole o link de incorporação do Looker Studio (começa com https://lookerstudio.google.com/embed/...)", "danger");
+    return;
+  }
+  try {
+    await saveWorkspaceRecord("client", { ...client, lookerStudioUrl: url });
+    showToast("Link do Looker Studio salvo", "success");
+    renderLookerEmbed();
+  } catch (error) {
+    showToast(error.message, "danger");
+  }
 }
 
 function renderWorkReports() {
+  renderMetricPickers();
+  renderLookerEmbed();
   const reports = state.workspace.reports || [];
   if (!reports.length) {
     el.workReportsContent.innerHTML = `${state.metaInsights ? renderMetaDashboard(state.metaInsights) : ""}${state.gaInsights ? renderGaDashboard(state.gaInsights) : ""}<div class="work-empty-state compact"><span class="work-empty-icon">+</span><h2>Nenhum dashboard salvo</h2><p>Crie um relatório para visualizar os dados de um cliente por período e objetivo.</p><button class="btn btn-primary" id="btnEmptyNewReport">Criar relatório</button></div>`;
     el.workReportsContent
       .querySelector("button")
       .addEventListener("click", openReportEditor);
+    renderInsightCharts();
     return;
   }
   el.workReportsContent.innerHTML = `${state.metaInsights ? renderMetaDashboard(state.metaInsights) : ""}${state.gaInsights ? renderGaDashboard(state.gaInsights) : ""}<div class="work-report-list">${reports
@@ -869,6 +1146,7 @@ function renderWorkReports() {
         ),
       ),
     );
+  renderInsightCharts();
 }
 
 function renderMetaDashboard(payload) {
@@ -984,6 +1262,11 @@ function renderMetaDashboard(payload) {
           <p>Nível: ${escapeHTML(levelName)} · Período: ${escapeHTML(payload.datePreset)} · Gerado em ${new Date().toLocaleString("pt-BR")}</p>
         </div>
         <button class="btn btn-secondary btn-sm" onclick="window.print()">Imprimir / PDF</button>
+      </div>
+
+      <div class="chart-card">
+        <h3>Gráfico personalizado (métricas selecionadas acima)</h3>
+        <div class="chart-card-canvas-wrap"><canvas id="metaChartCanvas"></canvas></div>
       </div>
 
       <!-- KPI Grid -->
@@ -1132,6 +1415,11 @@ function renderGaDashboard(payload) {
         <button class="btn btn-secondary btn-sm" onclick="window.print()">Imprimir / PDF</button>
       </div>
 
+      <div class="chart-card">
+        <h3>Gráfico personalizado (métricas selecionadas acima)</h3>
+        <div class="chart-card-canvas-wrap"><canvas id="gaChartCanvas"></canvas></div>
+      </div>
+
       <!-- KPI Grid -->
       <div class="report-metric-grid">
         <div class="kpi-card highlight-purple">
@@ -1192,8 +1480,15 @@ async function importGaInsights() {
   el.gaImportStatus.textContent = "Buscando dados no Google Analytics 4...";
   el.gaImportStatus.className = "meta-import-status";
   try {
+    // sessionDefaultChannelGroup sempre incluído: a seção "por canal" do
+    // dashboard abaixo depende dele, além da dimensão escolhida no gráfico.
+    const metrics = Array.from(
+      new Set([...getSelectedMetrics("ga4", ["sessions", "conversions"]), "sessions", "conversions"]),
+    );
+    const groupBy = el.gaGroupBy?.value || "date";
+    const dimensions = Array.from(new Set([groupBy, "date", "sessionDefaultChannelGroup"]));
     const response = await fetch(
-      `/api/ga4/insights?propertyId=${encodeURIComponent(propertyId)}&datePreset=${encodeURIComponent(datePreset)}`,
+      `/api/ga4/insights?propertyId=${encodeURIComponent(propertyId)}&datePreset=${encodeURIComponent(datePreset)}&metrics=${encodeURIComponent(metrics.join(","))}&dimensions=${encodeURIComponent(dimensions.join(","))}`,
     );
     const result = await response.json();
     if (!response.ok)
@@ -1213,27 +1508,30 @@ async function importGaInsights() {
 }
 
 async function refreshMetaConnectionStatus() {
-  if (!el.metaConnectionStatus) return;
+  const targets = [el.metaConnectionStatus, el.cfgMetaConnectionStatus].filter(Boolean);
+  if (!targets.length) return;
   try {
     const response = await fetch("/api/meta/status");
     const status = await response.json();
+    let html = "";
+    let className = "meta-import-status";
     if (status.connectedViaOAuth) {
-      el.metaConnectionStatus.innerHTML = `<span class="meta-status-ok">✅ Conectado ao Meta</span> · expira em ${status.daysUntilExpiry} dia(s) (renovação automática) · <a href="/auth/meta/login">Reconectar</a>`;
-      el.metaConnectionStatus.className = "meta-import-status success";
+      html = `<span class="meta-status-ok">✅ Conectado ao Meta</span> · expira em ${status.daysUntilExpiry} dia(s) (renovação automática) · <a href="/auth/meta/login">Reconectar</a>`;
+      className += " success";
     } else if (status.oauthConfigured) {
-      el.metaConnectionStatus.innerHTML = `Nenhuma conta conectada ainda · <a href="/auth/meta/login">Conectar com Meta</a>`;
-      el.metaConnectionStatus.className = "meta-import-status";
+      html = `Nenhuma conta conectada ainda · <a href="/auth/meta/login">Conectar com Meta</a>`;
     } else if (status.configured) {
-      el.metaConnectionStatus.textContent =
-        "Usando token fixo do .env (sem renovação automática).";
-      el.metaConnectionStatus.className = "meta-import-status";
+      html = "Usando token fixo do .env (sem renovação automática).";
     } else {
-      el.metaConnectionStatus.textContent =
-        "Meta Ads não configurado no backend.";
-      el.metaConnectionStatus.className = "meta-import-status error";
+      html = "Meta Ads não configurado no backend.";
+      className += " error";
     }
+    targets.forEach((target) => {
+      target.innerHTML = html;
+      target.className = className;
+    });
   } catch {
-    el.metaConnectionStatus.textContent = "";
+    targets.forEach((target) => (target.textContent = ""));
   }
 }
 
@@ -1250,8 +1548,25 @@ async function importMetaInsights() {
   el.metaImportStatus.textContent = "Gerando dashboard do Meta Ads...";
   el.metaImportStatus.className = "meta-import-status";
   try {
+    // Campos fixos abaixo alimentam o KPI grid e a lista de campanhas do
+    // dashboard (leads/compras vêm de actions/action_values); as métricas
+    // marcadas na seção acima entram como extra para o gráfico personalizado.
+    const requiredFields = [
+      "campaign_name",
+      "adset_name",
+      "ad_name",
+      "date_start",
+      "impressions",
+      "reach",
+      "clicks",
+      "spend",
+      "actions",
+      "action_values",
+    ];
+    const metrics = getSelectedMetrics("meta", ["impressions", "clicks", "spend"]);
+    const fields = Array.from(new Set([...requiredFields, ...metrics]));
     const response = await fetch(
-      `/api/meta/insights?accountId=${encodeURIComponent(accountId)}&datePreset=${encodeURIComponent(datePreset)}&level=${encodeURIComponent(level)}`,
+      `/api/meta/insights?accountId=${encodeURIComponent(accountId)}&datePreset=${encodeURIComponent(datePreset)}&level=${encodeURIComponent(level)}&fields=${encodeURIComponent(fields.join(","))}`,
     );
     const result = await response.json();
     if (!response.ok) {
@@ -1542,44 +1857,6 @@ function openCampaignEditor(client) {
   });
 }
 
-function openDocumentEditor(client) {
-  el.workDetailPanel.innerHTML = `<form class="work-form compact" id="documentForm"><div class="work-detail-heading"><div><span class="eyebrow-label">MATERIAL DO CLIENTE</span><h2>Nova apresentação ou documento</h2></div><button type="button" class="btn btn-ghost btn-sm" id="btnCancelDocument">Cancelar</button></div><div class="work-form-grid"><label>Nome do material<input name="name" required placeholder="Ex.: Proposta comercial setembro"></label><label>Tipo<select name="kind"><option>Briefing</option><option>Proposta comercial</option><option>Relatório</option><option>Apresentação</option><option>Contrato</option></select></label><label>Status<select name="status"><option>Rascunho</option><option>Enviado</option><option>Aprovado</option></select></label><label>Link ou caminho local<input name="url" placeholder="C:\\Documentos\\proposta.pptx"></label><label class="full">Conteúdo / roteiro<textarea name="content" rows="6" placeholder="Título, problema, estratégia, investimento e próximos passos..."></textarea></label></div><div class="work-form-actions"><button class="btn btn-secondary" type="button" id="btnPresentationPreview">Gerar prévia HTML</button><button class="btn btn-primary">Salvar material</button></div></form>`;
-  const form = el.workDetailPanel.querySelector("form");
-  el.workDetailPanel
-    .querySelector("#btnCancelDocument")
-    .addEventListener("click", () => renderWorkView());
-  el.workDetailPanel
-    .querySelector("#btnPresentationPreview")
-    .addEventListener("click", () => {
-      const title = form.name.value || "Apresentação";
-      const content = form.content.value || "Roteiro ainda não preenchido.";
-      const preview = `<html><body style="font-family:Arial;padding:48px"><h1>${escapeHTML(title)}</h1><p>${escapeHTML(content).replace(/\n/g, "<br>")}</p></body></html>`;
-      const blob = new Blob([preview], { type: "text/html" });
-      const link = document.createElement("a");
-      link.href = URL.createObjectURL(blob);
-      link.download = `${title.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}.html`;
-      link.click();
-      URL.revokeObjectURL(link.href);
-      showToast(
-        "Prévia exportada; use Imprimir > Salvar como PDF ou importe o roteiro no PowerPoint",
-        "info",
-        6000,
-      );
-    });
-  form.addEventListener("submit", async (event) => {
-    event.preventDefault();
-    const payload = Object.fromEntries(new FormData(form).entries());
-    payload.clientId = client.id;
-    try {
-      await saveWorkspaceRecord("document", payload);
-      renderWorkView();
-      showToast("Material salvo", "success");
-    } catch (error) {
-      showToast(error.message, "danger");
-    }
-  });
-}
-
 // 1. Course Dropdown in Header
 function openDocumentEditor(client = null) {
   const clients = state.workspace.clients || [];
@@ -1594,12 +1871,22 @@ function openDocumentEditor(client = null) {
     state.workSection === "documents"
       ? el.workDocumentsGrid
       : el.workDetailPanel;
-  target.innerHTML = `<form class="work-form compact" id="documentForm"><div class="work-detail-heading"><div><span class="eyebrow-label">ARQUIVO PROFISSIONAL</span><h2>Novo documento</h2></div><button type="button" class="btn btn-ghost btn-sm" id="btnCancelDocument">Cancelar</button></div><div class="work-form-grid"><label>Cliente relacionado<select name="clientId">${clients.map((item) => `<option value="${escapeHTML(item.id)}">${escapeHTML(item.name)}</option>`).join("")}</select></label><label>Nome do material<input name="name" required placeholder="Ex.: Proposta comercial setembro"></label><label>Tipo<select name="kind"><option>Briefing</option><option>Proposta comercial</option><option>Relatório</option><option>Apresentação</option><option>Contrato</option></select></label><label>Status<select name="status"><option>Rascunho</option><option>Enviado</option><option>Aprovado</option></select></label><label class="full">Link ou caminho local<input name="url" placeholder="C:\\Documentos\\proposta.pptx"></label><label class="full">Conteúdo / roteiro<textarea name="content" rows="6" placeholder="Título, problema, estratégia, investimento e próximos passos..."></textarea></label></div><div class="work-form-actions"><button class="btn btn-secondary" type="button" id="btnPresentationPreview">Gerar prévia HTML</button><button class="btn btn-primary">Salvar documento</button></div></form>`;
+  target.innerHTML = `<form class="work-form compact" id="documentForm"><div class="work-detail-heading"><div><span class="eyebrow-label">ARQUIVO PROFISSIONAL</span><h2>Novo documento</h2></div><button type="button" class="btn btn-ghost btn-sm" id="btnCancelDocument">Cancelar</button></div><div class="work-form-grid"><label>Cliente relacionado<select name="clientId">${clients.map((item) => `<option value="${escapeHTML(item.id)}">${escapeHTML(item.name)}</option>`).join("")}</select></label><label>Nome do material<input name="name" required placeholder="Ex.: Proposta comercial setembro"></label><label>Tipo<select name="kind"><option>Briefing</option><option>Proposta comercial</option><option>Relatório</option><option>Apresentação</option><option>Contrato</option></select></label><label>Status<select name="status"><option>Rascunho</option><option>Enviado</option><option>Aprovado</option></select></label><label class="full">Arquivo (PDF, Word, PowerPoint, imagem...)<input type="file" name="file" id="documentFileInput" accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.png,.jpg,.jpeg,.txt,.zip"><small id="documentFileHint">Até 14MB. Enviado com segurança para o storage — só quem tem acesso à plataforma consegue baixar.</small></label><label class="full">Ou cole um link externo (Google Drive, Canva...)<input name="url" placeholder="https://drive.google.com/..."></label><label class="full">Conteúdo / roteiro<textarea name="content" rows="6" placeholder="Título, problema, estratégia, investimento e próximos passos..."></textarea></label></div><div class="work-form-actions"><button class="btn btn-secondary" type="button" id="btnPresentationPreview">Gerar prévia HTML</button><button class="btn btn-primary" id="btnSubmitDocument">Salvar documento</button></div></form>`;
   const form = target.querySelector("form");
   form.clientId.value = selectedId;
   form.querySelector("#btnCancelDocument").addEventListener("click", () => {
     state.workSection = "documents";
     renderWorkView();
+  });
+  form.querySelector("#documentFileInput").addEventListener("change", (event) => {
+    const file = event.target.files?.[0];
+    const hint = form.querySelector("#documentFileHint");
+    if (file && file.size > 14 * 1024 * 1024) {
+      showToast("Arquivo muito grande (máximo 14MB). Use um link externo.", "danger");
+      event.target.value = "";
+      return;
+    }
+    if (file) hint.textContent = `${file.name} (${(file.size / 1024 / 1024).toFixed(1)}MB) selecionado`;
   });
   form
     .querySelector("#btnPresentationPreview")
@@ -1621,14 +1908,56 @@ function openDocumentEditor(client = null) {
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
     const payload = Object.fromEntries(new FormData(form).entries());
+    delete payload.file;
+    const submitBtn = form.querySelector("#btnSubmitDocument");
+    const file = form.querySelector("#documentFileInput").files?.[0];
+    submitBtn.disabled = true;
     try {
+      if (file) {
+        submitBtn.textContent = "Enviando arquivo...";
+        const uploaded = await uploadDocumentFile(file, payload.clientId);
+        payload.url = uploaded.url;
+        payload.storageKey = uploaded.storageKey;
+        payload.fileName = uploaded.fileName;
+        payload.fileSize = uploaded.fileSize;
+      }
       await saveWorkspaceRecord("document", payload);
       state.workSection = "documents";
       renderWorkView();
       showToast("Documento salvo", "success");
     } catch (error) {
       showToast(error.message, "danger");
+      submitBtn.disabled = false;
+      submitBtn.textContent = "Salvar documento";
     }
+  });
+}
+
+// Lê o arquivo escolhido, envia em base64 para o servidor guardar no R2 e
+// devolve a URL de download autenticada (só quem está logado consegue abrir).
+function uploadDocumentFile(file, clientId) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("Não foi possível ler o arquivo"));
+    reader.onload = async () => {
+      try {
+        const response = await fetch("/api/documents/upload", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            clientId,
+            fileName: file.name,
+            fileBase64: reader.result,
+          }),
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || "Falha ao enviar o arquivo");
+        resolve(data);
+      } catch (err) {
+        reject(err);
+      }
+    };
+    reader.readAsDataURL(file);
   });
 }
 
@@ -1679,7 +2008,7 @@ function renderHomeHero() {
   const allVideos = getAllCurrentCourseVideos();
   if (!allVideos.length) {
     el.heroLessonTitle.textContent = "Nenhuma aula localizada";
-    el.heroLessonSubtitle.textContent = `Verifique se o caminho '${el.cfgVideosDir.value}' está correto ou adicione seus vídeos na pasta.`;
+    el.heroLessonSubtitle.textContent = "Envie vídeos para o storage do Cloudflare R2 ou reescaneie a biblioteca.";
     el.heroProgressWrapper.style.display = "none";
     el.btnHeroResume.style.display = "none";
     el.btnHeroMarkCompleted.style.display = "none";
@@ -2068,8 +2397,8 @@ function renderAllCoursesView() {
   if (!courses.length) {
     el.allCoursesContainer.innerHTML = `
       <div style="padding:40px; text-align:center; color:var(--text-muted); background:var(--bg-card); border-radius:var(--radius-lg);">
-        <p style="font-size:16px; font-weight:600; margin-bottom:8px;">Nenhum curso encontrado no caminho configurado</p>
-        <p style="font-size:13px;">Caminho atual: <code>${el.cfgVideosDir.value}</code></p>
+        <p style="font-size:16px; font-weight:600; margin-bottom:8px;">Nenhum curso encontrado</p>
+        <p style="font-size:13px;">Envie vídeos para o storage do Cloudflare R2 ou clique em Reescanear.</p>
       </div>
     `;
     return;
@@ -2719,6 +3048,9 @@ function initEventListeners() {
   el.btnNewReport.addEventListener("click", () => openReportEditor());
   el.btnImportMeta.addEventListener("click", importMetaInsights);
   el.btnImportGa.addEventListener("click", importGaInsights);
+  el.metaChartType?.addEventListener("change", renderInsightCharts);
+  el.gaChartType?.addEventListener("change", renderInsightCharts);
+  el.btnSaveLookerUrl?.addEventListener("click", saveLookerStudioUrl);
 
   // Course Selector Toggle
   el.courseSelectorBtn.addEventListener("click", (e) => {
@@ -3169,6 +3501,7 @@ function initEventListeners() {
 
   // Settings Modal
   el.btnSettings.addEventListener("click", () => {
+    refreshMetaConnectionStatus();
     el.modalSettingsBackdrop.classList.add("open");
   });
   el.btnCloseSettings.addEventListener("click", () => {
@@ -3178,43 +3511,20 @@ function initEventListeners() {
     el.modalSettingsBackdrop.classList.remove("open");
   });
 
-  /* Save Directory
-  el.btnSaveVideosDir.addEventListener("click", async () => {
-    const newDir = el.cfgVideosDir.value.trim();
-    if (!newDir) return;
-    try {
-      const res = await fetch("/api/config", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ videosDir: newDir }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        showToast("Diretório salvo! Reescaneando...", "success");
-        await fetchInitialData();
-      }
-    } catch (e) {
-      showToast("Erro ao salvar diretório", "danger");
-    }
-  });
-  */
+  el.btnCfgSwitchAccount?.addEventListener("click", handleSwitchAccount);
+  el.btnCfgSignOut?.addEventListener("click", handleSignOut);
 
-  // Save Remote Videos URL
-  el.btnSaveRemoteVideosUrl?.addEventListener("click", async () => {
-    const remoteUrl = el.cfgRemoteVideosUrl.value.trim();
+  el.btnCollapseSidebar?.addEventListener("click", async () => {
+    state.settings.sidebarCollapsed = !state.settings.sidebarCollapsed;
+    applySidebarCollapsed(state.settings.sidebarCollapsed);
     try {
-      const res = await fetch("/api/config", {
+      await fetch("/api/settings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ remoteVideosUrl: remoteUrl }),
+        body: JSON.stringify({ sidebarCollapsed: state.settings.sidebarCollapsed }),
       });
-      const data = await res.json();
-      if (data.success) {
-        showToast("URL remota salva com sucesso!", "success");
-        await fetchInitialData();
-      }
     } catch (e) {
-      showToast("Erro ao salvar URL remota", "danger");
+      console.warn("Não foi possível salvar a preferência da barra lateral:", e);
     }
   });
 

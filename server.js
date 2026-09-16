@@ -5,6 +5,7 @@ const url = require("url");
 const crypto = require("crypto");
 const { exec } = require("child_process");
 const { GoogleAuth } = require("google-auth-library");
+const { createClient } = require("@supabase/supabase-js");
 const {
   S3Client,
   ListObjectsV2Command,
@@ -252,7 +253,92 @@ const META_TOKEN_REFRESH_THRESHOLD_MS = 10 * 24 * 60 * 60 * 1000; // 10 dias
 const GOOGLE_ANALYTICS_SCOPE =
   "https://www.googleapis.com/auth/analytics.readonly";
 const DEFAULT_GA4_PROPERTY_ID = process.env.GA4_PROPERTY_ID || "553354770";
+// Métricas/dimensões padrão da Data API do GA4 que o construtor de dashboard
+// deixa o usuário escolher livremente (evita passar nomes inválidos pra API).
+const GA4_ALLOWED_METRICS = new Set([
+  "sessions",
+  "activeUsers",
+  "totalUsers",
+  "newUsers",
+  "conversions",
+  "screenPageViews",
+  "screenPageViewsPerSession",
+  "engagementRate",
+  "engagedSessions",
+  "bounceRate",
+  "userEngagementDuration",
+  "averageSessionDuration",
+  "eventCount",
+  "eventsPerSession",
+  "totalRevenue",
+  "purchaseRevenue",
+  "transactions",
+  "ecommercePurchases",
+]);
+const GA4_ALLOWED_DIMENSIONS = new Set([
+  "date",
+  "sessionDefaultChannelGroup",
+  "sessionSourceMedium",
+  "sessionSource",
+  "sessionMedium",
+  "sessionCampaignName",
+  "country",
+  "city",
+  "deviceCategory",
+  "browser",
+  "landingPage",
+  "pagePath",
+  "pageTitle",
+]);
 const PUBLIC_DIR = path.join(ROOT_DIR, "public");
+
+// --- Controle de acesso (allowlist) ---
+// A chave anônima do Supabase não é secreta (é feita para rodar no navegador);
+// a segurança real vem de validar o token do usuário aqui no servidor e
+// checar o e-mail contra a lista de autorizados abaixo.
+const SUPABASE_URL = process.env.SUPABASE_URL || "https://olofdrngtjktrvgopyun.supabase.co";
+const SUPABASE_ANON_KEY =
+  process.env.SUPABASE_ANON_KEY || "sb_publishable_5J0eCJlr7nPZcvIpopnhyQ_aHdlFfB4";
+const supabaseAuth = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const ALLOWED_EMAILS = new Set(
+  (
+    process.env.ALLOWED_EMAILS ||
+    "iagodjcarvalho@gmail.com,iagoderik2223@gmail.com,iagoderik.work@gmail.com"
+  )
+    .split(",")
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean),
+);
+
+function isEmailAllowed(email) {
+  return Boolean(email) && ALLOWED_EMAILS.has(String(email).toLowerCase());
+}
+
+// Extrai e valida o token Supabase do request (header Authorization ou,
+// para links abertos via navegação direta, um ?token= na própria URL).
+async function getAuthenticatedEmail(req, parsedUrl) {
+  const authHeader = req.headers.authorization || "";
+  const token = authHeader.startsWith("Bearer ")
+    ? authHeader.slice(7)
+    : parsedUrl?.query?.token || null;
+  if (!token) return null;
+  try {
+    const { data, error } = await supabaseAuth.auth.getUser(token);
+    if (error || !data?.user?.email) return null;
+    return data.user.email.toLowerCase();
+  } catch (e) {
+    return null;
+  }
+}
+
+// Rotas de API que continuam públicas mesmo sem login (o próprio app usa
+// para decidir se mostra a tela de login/acesso negado ou o site).
+function isPublicApiPath(pathname, method) {
+  if (pathname === "/api/me") return true;
+  if (pathname === "/api/video" && method === "GET") return true;
+  if (pathname === "/api/thumbnail" && method === "GET") return true;
+  return false;
+}
 
 // Ensure directories exist
 [DATA_DIR, THUMBS_DIR, PUBLIC_DIR].forEach((dir) => {
@@ -279,55 +365,71 @@ function writeJSON(file, data) {
   }
 }
 
-// Memory caches
-let progressData = readJSON(PROGRESS_FILE, { lastVideoId: null, videos: {} });
-let settingsData = readJSON(SETTINGS_FILE, {
+// Memory caches (valores padrão; o conteúdo real do R2/disco é carregado de
+// forma assíncrona por ensureAppDataLoaded() antes de qualquer request).
+let progressData = { lastVideoId: null, videos: {} };
+let settingsData = {
   theme: "dark",
   accentColor: "indigo",
   autoPlayNext: true,
   playbackSpeed: 1,
   volume: 1,
   sidebarCollapsed: false,
-});
-let notesData = readJSON(NOTES_FILE, []);
-let favoritesData = readJSON(FAVORITES_FILE, []);
-let metaCache = readJSON(META_CACHE_FILE, {});
-let metaTokenStore = readJSON(META_TOKEN_FILE, null); // { access_token, expires_at, obtained_at }
+};
+let notesData = [];
+let favoritesData = [];
+let metaCache = {};
+let metaTokenStore = null; // { access_token, expires_at, obtained_at }
 let metaRefreshInFlight = null; // evita corridas de refresh simultâneas
 let metaTokenLoadPromise = null; // garante que o token salvo no R2 só é lido uma vez por instância
-let workspaceData = readJSON(WORKSPACE_FILE, {
-  clients: [],
-  campaigns: [],
-  documents: [],
-  reports: [],
-});
-workspaceData.reports ||= [];
+let workspaceData = { clients: [], campaigns: [], documents: [], reports: [] };
 
-function saveWorkspace() {
-  writeJSON(WORKSPACE_FILE, workspaceData);
+async function saveWorkspace() {
+  await persistStore("workspace", WORKSPACE_FILE, workspaceData);
+}
+
+// Carrega todas as stores (progresso, notas, favoritos, config, cache da
+// Meta e workspace) do R2/disco uma única vez por instância serverless.
+let appDataLoadPromise = null;
+function ensureAppDataLoaded() {
+  if (appDataLoadPromise) return appDataLoadPromise;
+  appDataLoadPromise = (async () => {
+    [progressData, settingsData, notesData, favoritesData, metaCache, workspaceData] =
+      await Promise.all([
+        loadPersistedStore("progress", PROGRESS_FILE, progressData),
+        loadPersistedStore("settings", SETTINGS_FILE, settingsData),
+        loadPersistedStore("notes", NOTES_FILE, notesData),
+        loadPersistedStore("favorites", FAVORITES_FILE, favoritesData),
+        loadPersistedStore("meta-cache", META_CACHE_FILE, metaCache),
+        loadPersistedStore("workspace", WORKSPACE_FILE, workspaceData),
+      ]);
+    workspaceData.reports ||= [];
+  })();
+  return appDataLoadPromise;
 }
 
 function createWorkspaceId(prefix) {
   return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
 }
 
-// --- Persistência do token da Meta em ambiente serverless (Vercel) ---
+// --- Persistência de dados em ambiente serverless (Vercel) ---
 // Em produção o disco é somente leitura (ou efêmero entre invocações), então
-// data/meta-token.json nunca sobrevive a um novo request. Para não obrigar o
-// usuário a refazer o /auth/meta/login toda hora, também guardamos o token no
-// R2 (que já está configurado para os vídeos/thumbnails). Como o bucket tem
-// uma URL pública (R2_PUBLIC_URL), o token é criptografado antes de subir —
-// assim, mesmo que alguém descubra o caminho do objeto, não consegue lê-lo.
-const R2_META_TOKEN_KEY = "_private/meta-token.enc";
+// data/*.json nunca sobrevive a um novo request/instância — sem isso, um
+// cliente cadastrado, uma anotação ou a conexão com a Meta podiam sumir
+// sozinhos. Guardamos uma cópia criptografada no R2 (que já está configurado
+// para os vídeos/thumbnails) além do arquivo local (usado em dev). Como o
+// bucket tem uma URL pública (R2_PUBLIC_URL), tudo é criptografado antes de
+// subir — mesmo que alguém descubra o caminho do objeto, não consegue ler.
+const R2_DATA_PREFIX = "_private/data/";
 
-function getMetaTokenCipherKey() {
-  const secret = META_APP_SECRET || META_APP_ID || "video-hub-meta-token-fallback";
+function getDataCipherKey() {
+  const secret = META_APP_SECRET || META_APP_ID || "video-hub-data-fallback";
   return crypto.createHash("sha256").update(secret).digest();
 }
 
-function encryptMetaTokenPayload(data) {
+function encryptForR2(data) {
   const iv = crypto.randomBytes(12);
-  const cipher = crypto.createCipheriv("aes-256-gcm", getMetaTokenCipherKey(), iv);
+  const cipher = crypto.createCipheriv("aes-256-gcm", getDataCipherKey(), iv);
   const encrypted = Buffer.concat([
     cipher.update(Buffer.from(JSON.stringify(data), "utf8")),
     cipher.final(),
@@ -336,17 +438,13 @@ function encryptMetaTokenPayload(data) {
   return Buffer.concat([iv, authTag, encrypted]).toString("base64");
 }
 
-function decryptMetaTokenPayload(base64Data) {
+function decryptFromR2(base64Data) {
   try {
     const raw = Buffer.from(base64Data, "base64");
     const iv = raw.subarray(0, 12);
     const authTag = raw.subarray(12, 28);
     const encrypted = raw.subarray(28);
-    const decipher = crypto.createDecipheriv(
-      "aes-256-gcm",
-      getMetaTokenCipherKey(),
-      iv,
-    );
+    const decipher = crypto.createDecipheriv("aes-256-gcm", getDataCipherKey(), iv);
     decipher.setAuthTag(authTag);
     const decrypted = Buffer.concat([
       decipher.update(encrypted),
@@ -358,30 +456,58 @@ function decryptMetaTokenPayload(base64Data) {
   }
 }
 
-async function readMetaTokenFromR2() {
+async function readEncryptedFromR2(key) {
   try {
     const res = await getR2Client().send(
-      new GetObjectCommand({
-        Bucket: process.env.R2_BUCKET_NAME,
-        Key: R2_META_TOKEN_KEY,
-      }),
+      new GetObjectCommand({ Bucket: process.env.R2_BUCKET_NAME, Key: key }),
     );
     const body = await res.Body.transformToString();
-    return decryptMetaTokenPayload(body);
+    return decryptFromR2(body);
   } catch (e) {
-    return null; // ainda não foi conectado nenhuma vez
+    return null; // ainda não existe
   }
 }
 
-async function writeMetaTokenToR2(data) {
+async function writeEncryptedToR2(key, data) {
   await getR2Client().send(
     new PutObjectCommand({
       Bucket: process.env.R2_BUCKET_NAME,
-      Key: R2_META_TOKEN_KEY,
-      Body: encryptMetaTokenPayload(data),
+      Key: key,
+      Body: encryptForR2(data),
       ContentType: "text/plain",
     }),
   );
+}
+
+// Carrega uma "store" de dados (progresso, notas, favoritos, configurações,
+// cache da Meta, workspace) do R2 uma única vez por instância — o resultado
+// fica em cache na promise, então chamadas seguintes são instantâneas.
+const dataLoadPromises = {};
+function loadPersistedStore(storeName, localFile, defaultVal) {
+  if (dataLoadPromises[storeName]) return dataLoadPromises[storeName];
+  dataLoadPromises[storeName] = (async () => {
+    if (!isR2Configured()) return readJSON(localFile, defaultVal);
+    const remote = await readEncryptedFromR2(`${R2_DATA_PREFIX}${storeName}.enc`);
+    return remote !== null ? remote : readJSON(localFile, defaultVal);
+  })();
+  return dataLoadPromises[storeName];
+}
+
+// Salva uma store tanto localmente (dev) quanto no R2 (produção). Sempre
+// aguardada antes do response terminar, pois a função serverless pode ser
+// congelada logo após o res.end() e uma escrita "solta" nunca completaria.
+async function persistStore(storeName, localFile, data) {
+  writeJSON(localFile, data); // uso local (dev); no-op silencioso se o disco for read-only
+  if (isR2Configured()) {
+    try {
+      await writeEncryptedToR2(`${R2_DATA_PREFIX}${storeName}.enc`, data);
+    } catch (e) {
+      console.error(
+        `⚠️  Não foi possível salvar "${storeName}" no R2 (pode não sobreviver a uma nova instância):`,
+        e.message,
+      );
+    }
+  }
 }
 
 // Garante que, ao "acordar" uma nova instância serverless, o token salvo
@@ -389,8 +515,8 @@ async function writeMetaTokenToR2(data) {
 function ensureMetaTokenLoaded() {
   if (metaTokenLoadPromise) return metaTokenLoadPromise;
   metaTokenLoadPromise = (async () => {
-    if (!metaTokenStore && isR2Configured()) {
-      const remote = await readMetaTokenFromR2();
+    if (!metaTokenStore) {
+      const remote = await loadPersistedStore("meta-token", META_TOKEN_FILE, null);
       if (remote) metaTokenStore = remote;
     }
   })();
@@ -399,17 +525,7 @@ function ensureMetaTokenLoaded() {
 
 async function saveMetaTokenStore(data) {
   metaTokenStore = data;
-  writeJSON(META_TOKEN_FILE, metaTokenStore); // uso local (dev); no-op silencioso se o disco for read-only
-  if (isR2Configured()) {
-    try {
-      await writeMetaTokenToR2(metaTokenStore);
-    } catch (e) {
-      console.error(
-        "⚠️  Não foi possível salvar o token da Meta no R2 (a conexão pode não sobreviver a um novo deploy/instância):",
-        e.message,
-      );
-    }
-  }
+  await persistStore("meta-token", META_TOKEN_FILE, metaTokenStore);
 }
 
 function getMetaAccessToken() {
@@ -959,6 +1075,8 @@ const server = http.createServer(async (req, res) => {
   const pathname = parsedUrl.pathname;
   const method = req.method;
 
+  await ensureAppDataLoaded();
+
   // CORS and base headers
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader(
@@ -973,13 +1091,34 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // GET /api/me - usado pelo frontend para saber se a sessão logada (Google
+  // via Supabase) pertence a alguém autorizado a usar o site.
+  if (pathname === "/api/me" && method === "GET") {
+    const email = await getAuthenticatedEmail(req, parsedUrl);
+    res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
+    res.end(JSON.stringify({ email: email || null, allowed: isEmailAllowed(email) }));
+    return;
+  }
+
+  // Bloqueia todo o resto da API para quem não estiver logado com um e-mail
+  // autorizado. /api/video e /api/thumbnail ficam de fora porque são
+  // carregados via <video>/<img src> (sem o header Authorization do fetch).
+  if (pathname.startsWith("/api/") && !isPublicApiPath(pathname, method)) {
+    const email = await getAuthenticatedEmail(req, parsedUrl);
+    if (!isEmailAllowed(email)) {
+      res.writeHead(403, { "Content-Type": "application/json; charset=utf-8" });
+      res.end(JSON.stringify({ error: "Acesso não autorizado" }));
+      return;
+    }
+  }
+
   // Parse JSON helper
   function parseJSONBody(cb) {
     let body = "";
     req.on("data", (chunk) => {
       body += chunk;
-      if (body.length > 10 * 1024 * 1024) {
-        // 10MB limit (for base64 thumb uploads)
+      if (body.length > 20 * 1024 * 1024) {
+        // 20MB limit (cobre thumbs em base64 e a maioria dos documentos/PDFs)
         res.writeHead(413, { "Content-Type": "application/json" });
         res.end(JSON.stringify({ error: "Payload too large" }));
         req.destroy();
@@ -1097,7 +1236,7 @@ const server = http.createServer(async (req, res) => {
   // POST /api/rescan - Force rescan
   if (pathname === "/api/rescan" && method === "POST") {
     metaCache = {};
-    writeJSON(META_CACHE_FILE, metaCache);
+    await persistStore("meta-cache", META_CACHE_FILE, metaCache);
     const data = await getCoursesData();
     res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
     res.end(
@@ -1292,6 +1431,91 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // POST /api/documents/upload - Envia um documento do cliente (proposta,
+  // contrato, briefing...) para o R2. Ao contrário dos vídeos/thumbs, esses
+  // arquivos não são expostos pela URL pública do bucket: só são acessíveis
+  // via /api/documents/download, que exige estar logado com e-mail autorizado.
+  if (pathname === "/api/documents/upload" && method === "POST") {
+    if (!isR2Configured()) {
+      res.writeHead(503, { "Content-Type": "application/json" });
+      res.end(
+        JSON.stringify({
+          error: "Upload de documentos requer o Cloudflare R2 configurado.",
+        }),
+      );
+      return;
+    }
+    parseJSONBody(async (err, data) => {
+      if (err || !data.fileName || !data.fileBase64) {
+        res.writeHead(400, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Dados inválidos" }));
+        return;
+      }
+      const match = /^data:([\w/.+-]+);base64,([\s\S]+)$/.exec(data.fileBase64);
+      const contentType = match ? match[1] : "application/octet-stream";
+      const base64Data = match ? match[2] : data.fileBase64;
+      const buffer = Buffer.from(base64Data, "base64");
+      if (buffer.length > 14 * 1024 * 1024) {
+        res.writeHead(413, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Arquivo muito grande (máximo 14MB)" }));
+        return;
+      }
+      const ext = path
+        .extname(data.fileName || "")
+        .slice(0, 10)
+        .replace(/[^a-zA-Z0-9.]/g, "");
+      const storageKey = `documents/${crypto.randomUUID()}${ext}`;
+      try {
+        await getR2Client().send(
+          new PutObjectCommand({
+            Bucket: process.env.R2_BUCKET_NAME,
+            Key: storageKey,
+            Body: buffer,
+            ContentType: contentType,
+          }),
+        );
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(
+          JSON.stringify({
+            storageKey,
+            fileName: data.fileName,
+            fileSize: buffer.length,
+            url: `/api/documents/download?key=${encodeURIComponent(storageKey)}`,
+          }),
+        );
+      } catch (e) {
+        res.writeHead(500, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: e.message }));
+      }
+    });
+    return;
+  }
+
+  // GET /api/documents/download - Baixa um documento (exige sessão
+  // autorizada, já garantido pelo bloqueio geral de /api/* acima).
+  if (pathname === "/api/documents/download" && method === "GET") {
+    const key = String(parsedUrl.query.key || "");
+    if (!key.startsWith("documents/")) {
+      res.writeHead(400, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: "Chave inválida" }));
+      return;
+    }
+    try {
+      const obj = await getR2Client().send(
+        new GetObjectCommand({ Bucket: process.env.R2_BUCKET_NAME, Key: key }),
+      );
+      res.writeHead(200, {
+        "Content-Type": obj.ContentType || "application/octet-stream",
+        "Content-Disposition": "attachment",
+      });
+      obj.Body.pipe(res);
+    } catch (e) {
+      res.writeHead(404, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: "Arquivo não encontrado" }));
+    }
+    return;
+  }
+
   // GET & POST /api/progress - Watch progress
   if (pathname === "/api/progress") {
     if (method === "GET") {
@@ -1300,10 +1524,21 @@ const server = http.createServer(async (req, res) => {
       return;
     }
     if (method === "POST") {
-      parseJSONBody((err, data) => {
+      parseJSONBody(async (err, data) => {
         if (err || !data.videoId) {
           res.writeHead(400, { "Content-Type": "application/json" });
           res.end(JSON.stringify({ error: "videoId é obrigatório" }));
+          return;
+        }
+
+        // Sentinela usada pelo botão "Zerar Histórico e Progresso".
+        if (data.videoId === "__RESET__") {
+          progressData = { lastVideoId: null, videos: {} };
+          await persistStore("progress", PROGRESS_FILE, progressData);
+          res.writeHead(200, {
+            "Content-Type": "application/json; charset=utf-8",
+          });
+          res.end(JSON.stringify({ success: true, progress: null }));
           return;
         }
 
@@ -1335,7 +1570,7 @@ const server = http.createServer(async (req, res) => {
           lastWatchedAt: new Date().toISOString(),
         };
 
-        writeJSON(PROGRESS_FILE, progressData);
+        await persistStore("progress", PROGRESS_FILE, progressData);
 
         res.writeHead(200, {
           "Content-Type": "application/json; charset=utf-8",
@@ -1417,7 +1652,7 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (method === "POST") {
-      parseJSONBody((err, data) => {
+      parseJSONBody(async (err, data) => {
         if (err || !data.videoId || !data.text) {
           res.writeHead(400, { "Content-Type": "application/json" });
           res.end(JSON.stringify({ error: "videoId e text são obrigatórios" }));
@@ -1437,7 +1672,7 @@ const server = http.createServer(async (req, res) => {
           createdAt: new Date().toISOString(),
         };
         notesData.push(newNote);
-        writeJSON(NOTES_FILE, notesData);
+        await persistStore("notes", NOTES_FILE, notesData);
 
         res.writeHead(201, {
           "Content-Type": "application/json; charset=utf-8",
@@ -1449,7 +1684,7 @@ const server = http.createServer(async (req, res) => {
 
     if (method === "PUT") {
       const noteId = pathname.replace("/api/notes/", "");
-      parseJSONBody((err, data) => {
+      parseJSONBody(async (err, data) => {
         const note = notesData.find((n) => n.id === noteId);
         if (!note) {
           res.writeHead(404, { "Content-Type": "application/json" });
@@ -1462,7 +1697,7 @@ const server = http.createServer(async (req, res) => {
           note.timestampFormatted = formatTime(note.timestamp);
         }
         note.updatedAt = new Date().toISOString();
-        writeJSON(NOTES_FILE, notesData);
+        await persistStore("notes", NOTES_FILE, notesData);
 
         res.writeHead(200, {
           "Content-Type": "application/json; charset=utf-8",
@@ -1481,7 +1716,7 @@ const server = http.createServer(async (req, res) => {
         return;
       }
       notesData.splice(idx, 1);
-      writeJSON(NOTES_FILE, notesData);
+      await persistStore("notes", NOTES_FILE, notesData);
 
       res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
       res.end(JSON.stringify({ success: true, message: "Nota removida" }));
@@ -1497,7 +1732,7 @@ const server = http.createServer(async (req, res) => {
       return;
     }
     if (method === "POST") {
-      parseJSONBody((err, data) => {
+      parseJSONBody(async (err, data) => {
         if (err || !data.videoId) {
           res.writeHead(400, { "Content-Type": "application/json" });
           res.end(JSON.stringify({ error: "videoId é obrigatório" }));
@@ -1510,7 +1745,7 @@ const server = http.createServer(async (req, res) => {
         } else {
           favoritesData.push(vId);
         }
-        writeJSON(FAVORITES_FILE, favoritesData);
+        await persistStore("favorites", FAVORITES_FILE, favoritesData);
         res.writeHead(200, {
           "Content-Type": "application/json; charset=utf-8",
         });
@@ -1534,7 +1769,7 @@ const server = http.createServer(async (req, res) => {
       return;
     }
     if (method === "POST") {
-      parseJSONBody((err, data) => {
+      parseJSONBody(async (err, data) => {
         if (err || !data.type || !data.payload) {
           res.writeHead(400, { "Content-Type": "application/json" });
           res.end(JSON.stringify({ error: "type e payload são obrigatórios" }));
@@ -1571,7 +1806,7 @@ const server = http.createServer(async (req, res) => {
 
         if (index >= 0) workspaceData[collection][index] = record;
         else workspaceData[collection].push(record);
-        saveWorkspace();
+        await saveWorkspace();
 
         res.writeHead(200, {
           "Content-Type": "application/json; charset=utf-8",
@@ -1609,7 +1844,7 @@ const server = http.createServer(async (req, res) => {
         (item) => item.clientId !== id,
       );
     }
-    saveWorkspace();
+    await saveWorkspace();
     res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
     res.end(JSON.stringify({ success: true, workspace: workspaceData }));
     return;
@@ -1757,28 +1992,25 @@ const server = http.createServer(async (req, res) => {
       "7daysAgo",
       "yesterday",
     ];
+    const requestedMetrics = String(
+      parsedUrl.query.metrics ||
+        "sessions,conversions,totalUsers,newUsers,screenPageViews,engagementRate,bounceRate,userEngagementDuration,averageSessionDuration,eventCount",
+    )
+      .split(",")
+      .map((m) => m.trim())
+      .filter((m) => GA4_ALLOWED_METRICS.has(m));
+    const requestedDimensions = String(
+      parsedUrl.query.dimensions ||
+        "date,sessionDefaultChannelGroup,sessionSourceMedium,sessionCampaignName,country,city",
+    )
+      .split(",")
+      .map((d) => d.trim())
+      .filter((d) => GA4_ALLOWED_DIMENSIONS.has(d));
+    if (!requestedMetrics.length) requestedMetrics.push("sessions");
     const body = {
       dateRanges: [{ startDate: range[0], endDate: range[1] }],
-      metrics: [
-        { name: "sessions" },
-        { name: "conversions" },
-        { name: "totalUsers" },
-        { name: "newUsers" },
-        { name: "screenPageViews" },
-        { name: "engagementRate" },
-        { name: "bounceRate" },
-        { name: "userEngagementDuration" },
-        { name: "averageSessionDuration" },
-        { name: "eventCount" },
-      ],
-      dimensions: [
-        { name: "date" },
-        { name: "sessionDefaultChannelGroup" },
-        { name: "sessionSourceMedium" },
-        { name: "sessionCampaignName" },
-        { name: "country" },
-        { name: "city" },
-      ],
+      metrics: requestedMetrics.map((name) => ({ name })),
+      dimensions: requestedDimensions.map((name) => ({ name })),
     };
     try {
       const data = await fetchGoogleAnalytics(propertyId, body);
@@ -1810,6 +2042,8 @@ const server = http.createServer(async (req, res) => {
           datePreset: parsedUrl.query.datePreset || "last_7d",
           timezone: data.metadata?.timeZone || null,
           currency: data.metadata?.currencyCode || null,
+          metrics: requestedMetrics,
+          dimensions: requestedDimensions,
           data: rows,
           rows: data.rows || [],
         }),
@@ -1833,9 +2067,9 @@ const server = http.createServer(async (req, res) => {
       return;
     }
     if (method === "POST") {
-      parseJSONBody((err, data) => {
+      parseJSONBody(async (err, data) => {
         settingsData = { ...settingsData, ...data };
-        writeJSON(SETTINGS_FILE, settingsData);
+        await persistStore("settings", SETTINGS_FILE, settingsData);
         res.writeHead(200, {
           "Content-Type": "application/json; charset=utf-8",
         });
