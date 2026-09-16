@@ -421,9 +421,7 @@ const el = {
   workDetailPanel: document.getElementById("workDetailPanel"),
   workClientCount: document.getElementById("workClientCount"),
   workKpiClients: document.getElementById("workKpiClients"),
-  workKpiCampaigns: document.getElementById("workKpiCampaigns"),
-  workKpiSpend: document.getElementById("workKpiSpend"),
-  workKpiLeads: document.getElementById("workKpiLeads"),
+  workKpiDocuments: document.getElementById("workKpiDocuments"),
   workKpiFilter: document.getElementById("workKpiFilter"),
   workKpiFilterBtn: document.getElementById("workKpiFilterBtn"),
   workKpiFilterLabel: document.getElementById("workKpiFilterLabel"),
@@ -1017,22 +1015,12 @@ function renderWorkKpis() {
   const clients = state.workspace.clients || [];
   const activeClients = activeKpiClients();
   const activeIds = new Set(activeClients.map((client) => client.id));
-  const campaigns = (state.workspace.campaigns || []).filter((campaign) =>
-    activeIds.has(campaign.clientId),
-  );
-  const spend = campaigns.reduce(
-    (sum, campaign) => sum + Number(campaign.spend || 0),
-    0,
-  );
-  const leads = campaigns.reduce(
-    (sum, campaign) => sum + Number(campaign.leads || 0),
-    0,
+  const documents = (state.workspace.documents || []).filter((doc) =>
+    activeIds.has(doc.clientId),
   );
 
   el.workKpiClients.textContent = activeClients.length;
-  el.workKpiCampaigns.textContent = campaigns.length;
-  el.workKpiSpend.textContent = formatCurrency(spend);
-  el.workKpiLeads.textContent = leads;
+  el.workKpiDocuments.textContent = documents.length;
 
   const isAll = activeClients.length === clients.length;
   if (el.workKpiFilterLabel) {
@@ -1109,7 +1097,7 @@ function renderWorkClientsView() {
       .toLowerCase()
       .includes(query),
   );
-  const campaigns = state.workspace.campaigns || [];
+  const documents = state.workspace.documents || [];
 
   el.workClientCount.textContent = clients.length;
   el.workClientList.innerHTML = "";
@@ -1118,12 +1106,12 @@ function renderWorkClientsView() {
     el.workClientList.innerHTML = `<div class="work-list-empty">Nenhum cliente cadastrado.</div>`;
   }
   visibleClients.forEach((client) => {
-    const campaignsCount = campaigns.filter(
+    const documentsCount = documents.filter(
       (item) => item.clientId === client.id,
     ).length;
     const item = document.createElement("button");
     item.className = `work-client-item ${client.id === state.currentClientId ? "active" : ""}`;
-    item.innerHTML = `<span class="work-client-avatar">${escapeHTML((client.name || "?").slice(0, 1).toUpperCase())}</span><span class="work-client-copy"><strong>${escapeHTML(client.name)}</strong><small>${escapeHTML(client.business || "Negócio ainda não descrito")}</small></span><em>${campaignsCount}</em>`;
+    item.innerHTML = `<span class="work-client-avatar">${escapeHTML((client.name || "?").slice(0, 1).toUpperCase())}</span><span class="work-client-copy"><strong>${escapeHTML(client.name)}</strong><small>${escapeHTML(client.business || "Negócio ainda não descrito")}</small></span><em title="Documentos">${documentsCount}</em>`;
     item.addEventListener("click", () => {
       state.currentClientId = client.id;
       renderWorkView();
@@ -1931,9 +1919,6 @@ async function importMetaInsights() {
 }
 
 function renderWorkClientDetail(client) {
-  const campaigns = state.workspace.campaigns.filter(
-    (item) => item.clientId === client.id,
-  );
   const documents = state.workspace.documents.filter(
     (item) => item.clientId === client.id,
   );
@@ -1947,7 +1932,7 @@ function renderWorkClientDetail(client) {
         .some((term) => note.text.toLowerCase().includes(term));
     })
     .slice(0, 5);
-  el.workDetailPanel.innerHTML = `<div class="work-detail-heading"><div><span class="eyebrow-label">CLIENTE</span><h2>${escapeHTML(client.name)}</h2><p>${escapeHTML(client.business || "Negócio")}${client.city ? ` · ${escapeHTML(client.city)}` : ""}</p></div><div class="work-detail-actions"><button class="btn btn-secondary btn-sm" id="btnEditClient">Editar</button><button class="btn btn-primary btn-sm" id="btnAddCampaign">+ Campanha</button></div></div><div class="work-info-strip"><div><span>Objetivo</span><strong>${escapeHTML(client.primaryGoal || "Não definido")}</strong></div><div><span>Contato</span><strong>${escapeHTML(client.contact || "Não informado")}</strong></div><div><span>Site / Instagram</span><strong>${escapeHTML(client.website || "Não informado")}</strong></div></div><div class="work-detail-grid"><section class="work-subpanel"><div class="work-subpanel-heading"><h3>Briefing do negócio</h3></div><dl class="work-briefing"><dt>Público-alvo</dt><dd>${escapeHTML(client.audience || "Ainda não preenchido")}</dd><dt>Detalhes</dt><dd>${escapeHTML(client.businessDetails || "Ainda não preenchido")}</dd><dt>Metas</dt><dd>${escapeHTML(client.goals || "Ainda não preenchido")}</dd></dl></section><section class="work-subpanel"><div class="work-subpanel-heading"><h3>Campanhas</h3><span>${campaigns.length}</span></div><div id="workCampaignList">${campaigns.length ? campaigns.map(renderCampaignItem).join("") : `<p class="work-muted">Nenhuma campanha cadastrada.</p>`}</div></section><section class="work-subpanel"><div class="work-subpanel-heading"><h3>Apresentações e documentos</h3><button class="btn btn-ghost btn-sm" id="btnAddDocument">+ Adicionar</button></div><div id="workDocumentList">${documents.length ? documents.map(renderDocumentItem).join("") : `<p class="work-muted">Adicione briefing, proposta ou relatório.</p>`}</div></section><section class="work-subpanel"><div class="work-subpanel-heading"><h3>Estudos relacionados</h3><span>${relatedNotes.length}</span></div>${relatedNotes.length ? relatedNotes.map((note) => `<div class="work-note"><strong>${escapeHTML(note.text.slice(0, 100))}</strong><small>${escapeHTML(note.timestampFormatted || "Anotação de aula")}</small></div>`).join("") : `<p class="work-muted">Adicione tags de estudo ao cliente para encontrar recomendações nas suas anotações.</p>`}</section></div>`;
+  el.workDetailPanel.innerHTML = `<div class="work-detail-heading"><div><span class="eyebrow-label">CLIENTE</span><h2>${escapeHTML(client.name)}</h2><p>${escapeHTML(client.business || "Negócio")}${client.city ? ` · ${escapeHTML(client.city)}` : ""}</p></div><div class="work-detail-actions"><button class="btn btn-secondary btn-sm" id="btnEditClient">Editar</button></div></div><div class="work-info-strip"><div><span>Objetivo</span><strong>${escapeHTML(client.primaryGoal || "Não definido")}</strong></div><div><span>Contato</span><strong>${escapeHTML(client.contact || "Não informado")}</strong></div><div><span>Site / Instagram</span><strong>${escapeHTML(client.website || "Não informado")}</strong></div></div><div class="work-detail-grid"><section class="work-subpanel"><div class="work-subpanel-heading"><h3>Briefing do negócio</h3></div><dl class="work-briefing"><dt>Público-alvo</dt><dd>${escapeHTML(client.audience || "Ainda não preenchido")}</dd><dt>Detalhes</dt><dd>${escapeHTML(client.businessDetails || "Ainda não preenchido")}</dd><dt>Metas</dt><dd>${escapeHTML(client.goals || "Ainda não preenchido")}</dd></dl></section><section class="work-subpanel"><div class="work-subpanel-heading"><h3>Apresentações e documentos</h3><button class="btn btn-ghost btn-sm" id="btnAddDocument">+ Adicionar</button></div><div id="workDocumentList">${documents.length ? documents.map(renderDocumentItem).join("") : `<p class="work-muted">Adicione briefing, proposta ou relatório.</p>`}</div></section><section class="work-subpanel"><div class="work-subpanel-heading"><h3>Estudos relacionados</h3><span>${relatedNotes.length}</span></div>${relatedNotes.length ? relatedNotes.map((note) => `<div class="work-note"><strong>${escapeHTML(note.text.slice(0, 100))}</strong><small>${escapeHTML(note.timestampFormatted || "Anotação de aula")}</small></div>`).join("") : `<p class="work-muted">Adicione tags de estudo ao cliente para encontrar recomendações nas suas anotações.</p>`}</section></div>`;
   const structured = document.createElement("section");
   structured.className = "work-subpanel work-structured-summary";
   structured.innerHTML = `<div class="work-subpanel-heading"><h3>Planejamento de público, objetivos e verba</h3></div><dl class="work-briefing"><dt>Públicos-alvo</dt><dd>${(client.audiences || []).map((item) => `${item.primary ? "Principal: " : ""}${item.ageMin}-${item.ageMax} anos · ${escapeHTML(item.gender)} · ${escapeHTML(item.segmentation || "Sem segmentação")}`).join("<br>") || escapeHTML(client.audience || "Ainda não preenchido")}</dd><dt>Objetivos</dt><dd>${(client.objectives || []).map((item) => `${item.primary ? "Principal: " : ""}${escapeHTML(item.name)}`).join("<br>") || escapeHTML(client.primaryGoal || "Ainda não definido")}</dd><dt>Site</dt><dd>${escapeHTML(client.website || "Não informado")}</dd><dt>Instagram</dt><dd>${escapeHTML(client.instagram || "Não informado")}</dd><dt>Orçamentos mensais</dt><dd>${(client.budgets || []).map((item) => `${escapeHTML(item.month || "Mês não definido")}: ${formatCurrency(item.amount)}`).join("<br>") || "Ainda não definido"}</dd></dl>`;
@@ -1955,9 +1940,6 @@ function renderWorkClientDetail(client) {
   el.workDetailPanel
     .querySelector("#btnEditClient")
     .addEventListener("click", () => openClientEditor(client));
-  el.workDetailPanel
-    .querySelector("#btnAddCampaign")
-    .addEventListener("click", () => openCampaignEditor(client));
   el.workDetailPanel
     .querySelector("#btnAddDocument")
     .addEventListener("click", () => openDocumentEditor(client));
@@ -2094,39 +2076,8 @@ function openClientEditor(client = null) {
   });
 }
 
-function renderCampaignItem(campaign) {
-  return `<div class="work-record-row"><div><strong>${escapeHTML(campaign.name)}</strong><small>${escapeHTML(campaign.platform || "Plataforma não definida")} · ${escapeHTML(campaign.status || "Rascunho")}</small></div><div><b>${formatCurrency(campaign.spend)}</b><small>${campaign.leads || 0} leads · ${campaign.conversions || 0} conversões</small></div></div>`;
-}
 function renderDocumentItem(document) {
   return `<div class="work-record-row"><div><strong>${escapeHTML(document.name)}</strong><small>${escapeHTML(document.kind || "Material")} · ${escapeHTML(document.status || "Rascunho")}</small></div><a href="${escapeHTML(document.url || "#")}" target="_blank" rel="noreferrer">Abrir</a></div>`;
-}
-
-function openCampaignEditor(client) {
-  el.workDetailPanel.innerHTML = `<form class="work-form compact" id="campaignForm"><div class="work-detail-heading"><div><span class="eyebrow-label">NOVA CAMPANHA</span><h2>${escapeHTML(client.name)}</h2></div><button type="button" class="btn btn-ghost btn-sm" id="btnCancelCampaign">Cancelar</button></div><div class="work-form-grid"><label>Nome da campanha<input name="name" required placeholder="Ex.: Venda de kit amigurumi"></label><label>Plataforma<select name="platform"><option>Meta Ads</option><option>Google Ads</option><option>TikTok Ads</option><option>Orgânico</option></select></label><label>Status<select name="status"><option>Planejamento</option><option>Ativa</option><option>Pausada</option><option>Encerrada</option></select></label><label>Período<input name="period" placeholder="Ex.: 01/09 a 30/09"></label><label>Investimento (R$)<input name="spend" type="number" min="0" step="0.01" value="0"></label><label>Impressões<input name="impressions" type="number" min="0" value="0"></label><label>Cliques<input name="clicks" type="number" min="0" value="0"></label><label>Leads / contatos<input name="leads" type="number" min="0" value="0"></label><label>Conversões<input name="conversions" type="number" min="0" value="0"></label><label>Custo por resultado<input name="costPerResult" type="number" min="0" step="0.01" value="0"></label><label class="full">Observações<textarea name="notes" rows="3"></textarea></label></div><div class="work-form-actions"><button class="btn btn-primary">Salvar campanha</button></div></form>`;
-  const form = el.workDetailPanel.querySelector("form");
-  el.workDetailPanel
-    .querySelector("#btnCancelCampaign")
-    .addEventListener("click", () => renderWorkView());
-  form.addEventListener("submit", async (event) => {
-    event.preventDefault();
-    const payload = Object.fromEntries(new FormData(form).entries());
-    payload.clientId = client.id;
-    [
-      "spend",
-      "impressions",
-      "clicks",
-      "leads",
-      "conversions",
-      "costPerResult",
-    ].forEach((key) => (payload[key] = Number(payload[key] || 0)));
-    try {
-      await saveWorkspaceRecord("campaign", payload);
-      renderWorkView();
-      showToast("Campanha salva", "success");
-    } catch (error) {
-      showToast(error.message, "danger");
-    }
-  });
 }
 
 // 1. Course Dropdown in Header
