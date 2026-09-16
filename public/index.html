@@ -814,8 +814,8 @@
       <div class="work-header">
         <div>
           <span class="eyebrow-label">ÁREA PROFISSIONAL</span>
-          <h1 class="shelf-title">Clientes & Campanhas</h1>
-          <p class="shelf-subtitle">Organize briefings, anúncios, resultados e materiais em um espaço privado local.</p>
+          <h1 class="shelf-title">Clientes</h1>
+          <p class="shelf-subtitle">Organize briefings, materiais e o histórico de cada cliente em um espaço privado local.</p>
         </div>
         <div class="work-header-actions">
           <button class="btn btn-secondary btn-sm" id="btnExportWork">Exportar dados</button>
@@ -825,15 +825,18 @@
 
       <div class="work-kpi-toolbar">
         <span class="work-kpi-toolbar-label">Mostrando dados de:</span>
-        <div class="work-kpi-filter" id="workKpiFilter">
-          <button class="work-kpi-filter-btn" id="workKpiFilterBtn" type="button">
+        <div class="work-kpi-filter course-selector-container" id="workKpiFilter">
+          <div class="course-selector-btn" id="workKpiFilterBtn">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+            </svg>
             <span id="workKpiFilterLabel">Todos os clientes</span>
             <svg class="chevron-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
               <polyline points="6 9 12 15 18 9"></polyline>
             </svg>
-          </button>
-          <div class="work-kpi-filter-dropdown" id="workKpiFilterDropdown">
-            <label class="work-kpi-filter-option work-kpi-filter-all">
+          </div>
+          <div class="course-dropdown-menu work-kpi-filter-dropdown" id="workKpiFilterDropdown">
+            <label class="course-option-item work-kpi-filter-option work-kpi-filter-all">
               <input type="checkbox" id="workKpiFilterAll" checked>
               <span>Todos os clientes</span>
             </label>
@@ -845,13 +848,11 @@
 
       <div class="work-kpi-grid">
         <div class="work-kpi"><span>Clientes selecionados</span><strong id="workKpiClients">0</strong></div>
-        <div class="work-kpi"><span>Campanhas</span><strong id="workKpiCampaigns">0</strong></div>
-        <div class="work-kpi"><span>Investimento</span><strong id="workKpiSpend">R$ 0,00</strong></div>
-        <div class="work-kpi"><span>Leads gerados</span><strong id="workKpiLeads">0</strong></div>
+        <div class="work-kpi"><span>Documentos</span><strong id="workKpiDocuments">0</strong></div>
       </div>
 
       <nav class="work-tabs" id="workTabs" aria-label="Seções profissionais">
-        <button class="work-tab active" data-work-section="clients">Clientes e campanhas</button>
+        <button class="work-tab active" data-work-section="clients">Clientes</button>
         <button class="work-tab" data-work-section="documents">Documentos</button>
         <button class="work-tab" data-work-section="reports">Relatórios e dashboards</button>
       </nav>

@@ -3058,72 +3058,15 @@ body {
   font-weight: 600;
   color: var(--text-muted);
 }
-.work-kpi-filter {
-  position: relative;
-}
-.work-kpi-filter-btn {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid var(--border-subtle);
-  padding: 7px 12px;
-  border-radius: var(--radius-md);
-  font-size: 12.5px;
-  font-weight: 600;
-  color: var(--text-primary);
-  cursor: pointer;
-  transition: var(--transition-fast);
-  max-width: 260px;
-}
-.work-kpi-filter-btn span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.work-kpi-filter-btn:hover {
-  background: rgba(255, 255, 255, 0.09);
-}
-.work-kpi-filter.open .chevron-icon {
-  transform: rotate(180deg);
-}
 .work-kpi-filter-dropdown {
-  position: absolute;
-  top: calc(100% + 8px);
-  left: 0;
   min-width: 240px;
   max-height: 320px;
-  overflow-y: auto;
-  background: var(--bg-surface);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.6);
-  padding: 8px;
-  opacity: 0;
-  transform: translateY(6px) scale(0.98);
-  pointer-events: none;
-  transition: opacity var(--transition-fast), transform var(--transition-fast);
-  z-index: 200;
-}
-.work-kpi-filter.open .work-kpi-filter-dropdown {
-  opacity: 1;
-  transform: translateY(0) scale(1);
-  pointer-events: auto;
 }
 .work-kpi-filter-option {
   display: flex;
   align-items: center;
+  justify-content: flex-start;
   gap: 9px;
-  padding: 8px 10px;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  font-size: 13px;
-  color: var(--text-secondary);
-  transition: var(--transition-fast);
-}
-.work-kpi-filter-option:hover {
-  background: rgba(255, 255, 255, 0.08);
-  color: var(--text-primary);
 }
 .work-kpi-filter-option input[type="checkbox"] {
   accent-color: var(--accent-primary);
