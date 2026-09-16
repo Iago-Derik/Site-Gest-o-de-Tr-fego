@@ -271,6 +271,12 @@ const el = {
   toastContainer: document.getElementById("toastContainer"),
 };
 
+// Vídeos são servidos direto do R2 (outra origem). Sem crossOrigin, o
+// navegador marca o <video> como "tainted" e bloqueia a leitura do canvas
+// (toDataURL), o que fazia a captura automática da thumbnail falhar
+// silenciosamente e a aula ficar sempre com o fundo azul de fallback.
+if (el.mainVideoPlayer) el.mainVideoPlayer.crossOrigin = "anonymous";
+
 // --------------------------------------------------------------------------
 // UTILITIES
 // --------------------------------------------------------------------------
@@ -307,6 +313,25 @@ function escapeHTML(str) {
     .replace(/"/g, "&quot;");
 }
 
+// Envia o frame capturado (canvas) para o servidor salvar como thumbnail
+// no R2 e atualiza qualquer <img> visível na tela na hora, sem esperar reload.
+async function uploadCapturedThumb(videoId, thumbUrl, canvas) {
+  const response = await fetch("/api/thumbnail/upload", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      videoId,
+      imageBase64: canvas.toDataURL("image/jpeg", 0.82),
+    }),
+  });
+  if (!response.ok) throw new Error("Falha ao salvar thumbnail");
+
+  const cacheBust = `?frame=${Date.now()}`;
+  document.querySelectorAll(`img[src^="${thumbUrl}"]`).forEach((image) => {
+    image.src = `${thumbUrl}${cacheBust}`;
+  });
+}
+
 async function captureFirstFrame(video) {
   const currentVideo = state.currentVideo;
   if (
@@ -320,30 +345,128 @@ async function captureFirstFrame(video) {
   const canvas = document.createElement("canvas");
   canvas.width = 640;
   canvas.height = 360;
-  const context = canvas.getContext("2d");
-  context.drawImage(video, 0, 0, canvas.width, canvas.height);
+  canvas.getContext("2d").drawImage(video, 0, 0, canvas.width, canvas.height);
 
   try {
-    const response = await fetch("/api/thumbnail/upload", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        videoId: currentVideo.id,
-        imageBase64: canvas.toDataURL("image/jpeg", 0.82),
-      }),
-    });
-    if (!response.ok) throw new Error("Falha ao salvar thumbnail");
-
-    const cacheBust = `?frame=${Date.now()}`;
-    document
-      .querySelectorAll(`img[src^="${currentVideo.thumbUrl}"]`)
-      .forEach((image) => {
-        image.src = `${currentVideo.thumbUrl}${cacheBust}`;
-      });
+    await uploadCapturedThumb(currentVideo.id, currentVideo.thumbUrl, canvas);
   } catch (err) {
     state.generatedThumbIds.delete(currentVideo.id);
     console.warn("Não foi possível salvar o primeiro frame:", err);
   }
+}
+
+// --------------------------------------------------------------------------
+// AUTOMATIC BACKGROUND THUMBNAIL GENERATION
+// --------------------------------------------------------------------------
+// Gera a thumbnail (primeiro frame real do vídeo) automaticamente para os
+// vídeos que ainda não têm uma salva no R2, sem depender do usuário abrir
+// cada aula manualmente. Processa um vídeo por vez, usando um <video> oculto,
+// para não competir por banda com o vídeo que o usuário estiver assistindo.
+let autoThumbQueueRunning = false;
+
+function createHiddenVideoEl() {
+  const hidden = document.createElement("video");
+  hidden.crossOrigin = "anonymous";
+  hidden.muted = true;
+  hidden.playsInline = true;
+  hidden.preload = "auto";
+  hidden.style.cssText =
+    "position:fixed;top:-9999px;left:-9999px;width:1px;height:1px;opacity:0;pointer-events:none;";
+  return hidden;
+}
+
+function generateThumbInBackground(video) {
+  return new Promise((resolve) => {
+    const hidden = createHiddenVideoEl();
+    let settled = false;
+
+    const cleanup = () => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      hidden.pause();
+      hidden.removeAttribute("src");
+      hidden.load();
+      hidden.remove();
+      resolve();
+    };
+    // Não deixa a fila travada caso um vídeo específico nunca carregue.
+    const timeout = setTimeout(cleanup, 15000);
+
+    const capture = () => {
+      if (settled) return;
+      try {
+        if (!hidden.videoWidth) return cleanup();
+        const canvas = document.createElement("canvas");
+        canvas.width = 640;
+        canvas.height = 360;
+        canvas
+          .getContext("2d")
+          .drawImage(hidden, 0, 0, canvas.width, canvas.height);
+        uploadCapturedThumb(video.id, video.thumbUrl, canvas).catch((err) => {
+          state.generatedThumbIds.delete(video.id);
+          console.warn("Thumbnail automática falhou:", video.id, err);
+        });
+      } catch (err) {
+        state.generatedThumbIds.delete(video.id);
+        console.warn("Thumbnail automática falhou:", video.id, err);
+      } finally {
+        cleanup();
+      }
+    };
+
+    hidden.addEventListener(
+      "loadeddata",
+      () => {
+        // Um pequeno seek evita pegar um frame preto/vazio logo no tempo 0
+        // em alguns codecs, mantendo o espírito de "primeiro frame".
+        if (hidden.duration > 0.5) {
+          hidden.currentTime = Math.min(0.5, hidden.duration / 4);
+          hidden.addEventListener("seeked", capture, { once: true });
+        } else {
+          capture();
+        }
+      },
+      { once: true },
+    );
+    hidden.addEventListener("error", cleanup, { once: true });
+
+    document.body.appendChild(hidden);
+    hidden.src = video.videoUrl;
+  });
+}
+
+async function runAutoThumbnailQueue(videos) {
+  if (autoThumbQueueRunning) return;
+  autoThumbQueueRunning = true;
+  try {
+    for (const video of videos) {
+      if (state.generatedThumbIds.has(video.id)) continue;
+      state.generatedThumbIds.add(video.id);
+      await generateThumbInBackground(video);
+      // Pequena pausa entre vídeos para não pesar na conexão do usuário.
+      await new Promise((r) => setTimeout(r, 400));
+    }
+  } finally {
+    autoThumbQueueRunning = false;
+  }
+}
+
+function scheduleAutoThumbnails() {
+  const courses = state.coursesData?.courses || [];
+  const pending = [];
+  courses.forEach((course) => {
+    (course.modules || []).forEach((mod) => {
+      (mod.videos || []).forEach((v) => {
+        if (v.hasThumb) {
+          state.generatedThumbIds.add(v.id);
+        } else if (!state.generatedThumbIds.has(v.id)) {
+          pending.push(v);
+        }
+      });
+    });
+  });
+  if (pending.length) runAutoThumbnailQueue(pending);
 }
 
 // Visual feedback on screen when clicking video to play/pause
@@ -417,6 +540,10 @@ async function fetchInitialData() {
     }
 
     renderAll();
+
+    // Espera a tela terminar de renderizar antes de começar a gerar
+    // thumbnails em segundo plano, para não competir com o carregamento inicial.
+    setTimeout(scheduleAutoThumbnails, 1500);
 
     if (state.coursesData.videosDirExists === false) {
       showToast(
@@ -3101,6 +3228,7 @@ function initEventListeners() {
       if (data.success) {
         state.coursesData = data.data;
         renderAll();
+        setTimeout(scheduleAutoThumbnails, 1000);
         showToast("Biblioteca atualizada com sucesso!", "success");
       }
     } catch (e) {
