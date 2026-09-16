@@ -59,75 +59,40 @@
   </div>
 
 
-  <!-- TOP NAVIGATION BAR -->
-  <header class="app-header">
-    <div class="header-left">
-      <div class="brand" id="btnLogoHome">
-        <div class="brand-icon">
-          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-            <polygon points="5 3 19 12 5 21 5 3"></polygon>
-          </svg>
-          <span class="brand-pulse"></span>
+  <!-- APP SHELL: SIDEBAR + CONTENT COLUMN -->
+  <div class="app-shell" id="appShell">
+    <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+
+    <!-- LEFT SIDEBAR NAVIGATION -->
+    <aside class="app-sidebar" id="appSidebar">
+      <div class="sidebar-top">
+        <div class="brand" id="btnLogoHome">
+          <div class="brand-icon">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="5 3 19 12 5 21 5 3"></polygon>
+            </svg>
+            <span class="brand-pulse"></span>
+          </div>
+          <div class="brand-text">
+            <span class="brand-name">VIDEO HUB</span>
+            <span class="brand-badge">PRO 2.0</span>
+          </div>
         </div>
-        <div class="brand-text">
-          <span class="brand-name">VIDEO HUB</span>
-          <span class="brand-badge">PRO 2.0</span>
-        </div>
+        <button class="sidebar-close-btn" id="btnCloseSidebar" aria-label="Fechar menu">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
       </div>
 
-      <!-- Course Selector (Dropdown) -->
-      <div class="course-selector-container" id="courseSelectorWrapper">
-        <div class="course-selector-btn" id="courseSelectorBtn">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
-            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
-          </svg>
-          <span id="currentCourseLabel">Carregando cursos...</span>
-          <svg class="chevron-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
-            <polyline points="6 9 12 15 18 9"></polyline>
-          </svg>
-        </div>
-        <div class="course-dropdown-menu" id="courseDropdownMenu"></div>
-      </div>
-    </div>
-
-    <!-- Center Search -->
-    <div class="header-center">
-      <div class="search-box">
-        <svg class="search-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="11" cy="11" r="8"></circle>
-          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-        </svg>
-        <input type="text" id="globalSearchInput" placeholder="Buscar aulas, módulos ou anotações (Ctrl + K)..." autocomplete="off">
-        <button class="search-clear-btn" id="btnClearSearch" title="Limpar busca">&times;</button>
-        <kbd class="search-shortcut">⌘K</kbd>
-      </div>
-    </div>
-
-    <!-- Header Right Actions & Progress -->
-    <div class="header-right">
-      <!-- Course Overall Progress Badge -->
-      <div class="course-progress-pill" id="headerCourseProgress" title="Progresso geral do curso">
-        <div class="progress-info">
-          <span class="progress-label">Progresso</span>
-          <span class="progress-value" id="headerProgressPercent">0%</span>
-        </div>
-        <div class="progress-bar-track">
-          <div class="progress-bar-fill" id="headerProgressBar" style="width: 0%"></div>
-        </div>
-        <span class="progress-count" id="headerProgressCount">0/0</span>
-      </div>
-
-      <!-- Navigation tabs buttons -->
-      <nav class="nav-links">
-        <button class="nav-btn active" id="navBtnHome" title="Página Inicial">
+      <nav class="sidebar-nav">
+        <span class="sidebar-nav-label">Estudo</span>
+        <button class="sidebar-nav-item active" id="navBtnHome" title="Página Inicial">
           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
             <polyline points="9 22 9 12 15 12 15 22"></polyline>
           </svg>
           <span>Home</span>
         </button>
-        <button class="nav-btn" id="navBtnCourses" title="Todos os Cursos e Módulos">
+        <button class="sidebar-nav-item" id="navBtnCourses" title="Todos os Cursos e Módulos">
           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
             <rect x="3" y="3" width="7" height="7"></rect>
             <rect x="14" y="3" width="7" height="7"></rect>
@@ -136,7 +101,7 @@
           </svg>
           <span>Cursos</span>
         </button>
-        <button class="nav-btn" id="navBtnPlayer" title="Player de Aula">
+        <button class="sidebar-nav-item" id="navBtnPlayer" title="Player de Aula">
           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
             <rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"></rect>
             <line x1="7" y1="2" x2="7" y2="22"></line>
@@ -149,7 +114,7 @@
           </svg>
           <span>Player</span>
         </button>
-        <button class="nav-btn" id="navBtnNotes" title="Minhas Anotações">
+        <button class="sidebar-nav-item" id="navBtnNotes" title="Minhas Anotações">
           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
             <polyline points="14 2 14 8 20 8"></polyline>
@@ -158,13 +123,15 @@
           </svg>
           <span>Anotações</span>
         </button>
-        <button class="nav-btn" id="navBtnFavorites" title="Aulas Favoritas">
+        <button class="sidebar-nav-item" id="navBtnFavorites" title="Aulas Favoritas">
           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
           </svg>
           <span>Favoritos</span>
         </button>
-        <button class="nav-btn" id="navBtnWork" title="Área profissional">
+
+        <span class="sidebar-nav-label">Gestão</span>
+        <button class="sidebar-nav-item" id="navBtnWork" title="Área profissional">
           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
             <rect x="3" y="7" width="18" height="13" rx="2"></rect>
             <path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 12h18M10 12v2h4v-2"></path>
@@ -173,29 +140,34 @@
         </button>
       </nav>
 
-      <!-- System Buttons -->
-      <div class="header-system-actions">
-        <button class="action-circle-btn" id="btnRescan" title="Reescanear pastas de vídeos">
-          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2">
-            <polyline points="23 4 23 10 17 10"></polyline>
-            <polyline points="1 20 1 14 7 14"></polyline>
-            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
-          </svg>
-        </button>
-        <button class="action-circle-btn" id="btnSettings" title="Configurações e Diretório">
-          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="3"></circle>
-            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-          </svg>
-        </button>
-        <button class="action-circle-btn" id="btnShortcuts" title="Atalhos de Teclado">
-          <span style="font-weight: 700; font-size: 13px;">?</span>
-        </button>
+      <div class="sidebar-footer">
+        <div class="sidebar-footer-actions">
+          <button class="action-circle-btn" id="btnRescan" title="Reescanear pastas de vídeos">
+            <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="23 4 23 10 17 10"></polyline>
+              <polyline points="1 20 1 14 7 14"></polyline>
+              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+            </svg>
+          </button>
+          <button class="action-circle-btn" id="btnSettings" title="Configurações e Diretório">
+            <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="3"></circle>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+            </svg>
+          </button>
+          <button class="action-circle-btn" id="btnShortcuts" title="Atalhos de Teclado">
+            <span style="font-weight: 700; font-size: 13px;">?</span>
+          </button>
+        </div>
 
         <!-- Menu de Conta (trocar de conta / sair) -->
         <div class="account-menu-wrapper">
-          <button class="account-avatar-btn" id="btnAccountMenu" title="Sua conta">
-            <span id="accountAvatarInitial">?</span>
+          <button class="account-menu-trigger" id="btnAccountMenu" title="Sua conta">
+            <span class="account-avatar-btn"><span id="accountAvatarInitial">?</span></span>
+            <span class="account-menu-trigger-email" id="accountTriggerEmail">Minha conta</span>
+            <svg class="chevron-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="18 15 12 9 6 15"></polyline>
+            </svg>
           </button>
           <div class="account-menu-dropdown" id="accountMenuDropdown">
             <div class="account-menu-header">
@@ -213,11 +185,58 @@
           </div>
         </div>
       </div>
-    </div>
-  </header>
+    </aside>
 
-  <!-- MAIN WRAPPER -->
-  <main class="app-main" id="mainContainer">
+    <div class="app-content-column">
+      <!-- SLIM TOP BAR -->
+      <header class="app-topbar">
+        <button class="topbar-menu-btn" id="btnToggleSidebar" aria-label="Abrir menu">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+        </button>
+
+        <!-- Course Selector (Dropdown) -->
+        <div class="course-selector-container" id="courseSelectorWrapper">
+          <div class="course-selector-btn" id="courseSelectorBtn">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+            </svg>
+            <span id="currentCourseLabel">Carregando cursos...</span>
+            <svg class="chevron-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="6 9 12 15 18 9"></polyline>
+            </svg>
+          </div>
+          <div class="course-dropdown-menu" id="courseDropdownMenu"></div>
+        </div>
+
+        <!-- Center Search -->
+        <div class="header-center">
+          <div class="search-box">
+            <svg class="search-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input type="text" id="globalSearchInput" placeholder="Buscar aulas, módulos ou anotações (Ctrl + K)..." autocomplete="off">
+            <button class="search-clear-btn" id="btnClearSearch" title="Limpar busca">&times;</button>
+            <kbd class="search-shortcut">⌘K</kbd>
+          </div>
+        </div>
+
+        <!-- Course Overall Progress Badge -->
+        <div class="course-progress-pill" id="headerCourseProgress" title="Progresso geral do curso">
+          <div class="progress-info">
+            <span class="progress-label">Progresso</span>
+            <span class="progress-value" id="headerProgressPercent">0%</span>
+          </div>
+          <div class="progress-bar-track">
+            <div class="progress-bar-fill" id="headerProgressBar" style="width: 0%"></div>
+          </div>
+          <span class="progress-count" id="headerProgressCount">0/0</span>
+        </div>
+      </header>
+
+      <!-- MAIN WRAPPER -->
+      <main class="app-main" id="mainContainer">
 
     <!-- ================================================================= -->
     <!-- 1. HOME / DASHBOARD VIEW -->
@@ -942,6 +961,9 @@
     </section>
 
   </main>
+    </div>
+  </div>
+  <!-- /APP SHELL -->
 
   <!-- MODAL: SETTINGS & DIRECTORY -->
   <div class="modal-backdrop" id="modalSettingsBackdrop">

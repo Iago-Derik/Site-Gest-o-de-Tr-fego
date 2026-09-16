@@ -67,8 +67,10 @@ function setupAccountMenu(user) {
   const initial = email.charAt(0).toUpperCase() || "?";
   const emailLabel = document.getElementById("accountMenuEmail");
   const avatar = document.getElementById("accountAvatarInitial");
+  const triggerEmail = document.getElementById("accountTriggerEmail");
   if (emailLabel) emailLabel.textContent = email;
   if (avatar) avatar.textContent = initial;
+  if (triggerEmail) triggerEmail.textContent = email.split("@")[0] || "Minha conta";
   if (el.cfgAccountEmail) el.cfgAccountEmail.textContent = email;
   if (el.cfgAccountAvatar) el.cfgAccountAvatar.textContent = initial;
 }
@@ -107,17 +109,42 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const accountBtn = document.getElementById("btnAccountMenu");
   const accountMenu = document.getElementById("accountMenuDropdown");
+  const accountWrapper = accountBtn?.closest(".account-menu-wrapper");
   accountBtn?.addEventListener("click", (event) => {
     event.stopPropagation();
-    accountMenu.classList.toggle("open");
+    const isOpen = accountMenu.classList.toggle("open");
+    accountWrapper?.classList.toggle("open", isOpen);
   });
   document.addEventListener("click", (event) => {
-    if (accountMenu && !accountMenu.contains(event.target) && event.target !== accountBtn) {
+    if (
+      accountMenu &&
+      !accountMenu.contains(event.target) &&
+      !accountBtn?.contains(event.target)
+    ) {
       accountMenu.classList.remove("open");
+      accountWrapper?.classList.remove("open");
     }
   });
   document.getElementById("btnSwitchAccount")?.addEventListener("click", handleSwitchAccount);
   document.getElementById("btnSignOut")?.addEventListener("click", handleSignOut);
+
+  // Sidebar: hambúrguer (mobile) abre um drawer; X e clique no fundo fecham.
+  const sidebar = document.getElementById("appSidebar");
+  const sidebarBackdrop = document.getElementById("sidebarBackdrop");
+  const openSidebar = () => {
+    sidebar?.classList.add("open");
+    sidebarBackdrop?.classList.add("open");
+  };
+  const closeSidebar = () => {
+    sidebar?.classList.remove("open");
+    sidebarBackdrop?.classList.remove("open");
+  };
+  document.getElementById("btnToggleSidebar")?.addEventListener("click", openSidebar);
+  document.getElementById("btnCloseSidebar")?.addEventListener("click", closeSidebar);
+  sidebarBackdrop?.addEventListener("click", closeSidebar);
+  sidebar?.querySelectorAll(".sidebar-nav-item").forEach((item) => {
+    item.addEventListener("click", closeSidebar);
+  });
 });
 // ---------------------------------
 
@@ -1097,7 +1124,7 @@ function renderWorkReports() {
   if (!reports.length) {
     el.workReportsContent.innerHTML = `${state.metaInsights ? renderMetaDashboard(state.metaInsights) : ""}${state.gaInsights ? renderGaDashboard(state.gaInsights) : ""}<div class="work-empty-state compact"><span class="work-empty-icon">+</span><h2>Nenhum dashboard salvo</h2><p>Crie um relatório para visualizar os dados de um cliente por período e objetivo.</p><button class="btn btn-primary" id="btnEmptyNewReport">Criar relatório</button></div>`;
     el.workReportsContent
-      .querySelector("button")
+      .querySelector("#btnEmptyNewReport")
       .addEventListener("click", openReportEditor);
     renderInsightCharts();
     return;
@@ -1619,39 +1646,6 @@ function openReportEditor(report = null) {
       await saveWorkspaceRecord("report", payload);
       renderWorkReports();
       showToast("Dashboard salvo localmente", "success");
-    } catch (error) {
-      showToast(error.message, "danger");
-    }
-  });
-}
-
-function openClientEditor(client = null) {
-  const record = client || {
-    name: "",
-    business: "",
-    contact: "",
-    website: "",
-    city: "",
-    audience: "",
-    businessDetails: "",
-    goals: "",
-    studyTags: "",
-  };
-  el.workDetailPanel.innerHTML = `<form class="work-form" id="clientForm"><div class="work-detail-heading"><div><span class="eyebrow-label">${client ? "EDITAR CLIENTE" : "NOVO CADASTRO"}</span><h2>${client ? escapeHTML(client.name) : "Novo cliente"}</h2></div><button type="button" class="btn btn-ghost btn-sm" id="btnCancelClient">Cancelar</button></div><div class="work-form-grid"><label>Nome do cliente<input name="name" required value="${escapeHTML(record.name)}"></label><label>Negócio / marca<input name="business" value="${escapeHTML(record.business)}"></label><label>Contato<input name="contact" value="${escapeHTML(record.contact)}"></label><label>Site / Instagram<input name="website" value="${escapeHTML(record.website)}"></label><label>Cidade / região<input name="city" value="${escapeHTML(record.city)}"></label><label>Objetivo principal<select name="primaryGoal"><option value="whatsapp">Conversas no WhatsApp</option><option value="site">Acessos e vendas no site</option><option value="instagram">Seguidores e interação</option><option value="leads">Geração de leads</option></select></label><label class="full">Público-alvo<textarea name="audience" rows="3">${escapeHTML(record.audience)}</textarea></label><label class="full">Detalhes do negócio<textarea name="businessDetails" rows="4">${escapeHTML(record.businessDetails)}</textarea></label><label class="full">Metas e resultado esperado<textarea name="goals" rows="3">${escapeHTML(record.goals)}</textarea></label><label class="full">Tags de estudo <small>Ex.: Meta Ads, remarketing, criativos</small><input name="studyTags" value="${escapeHTML(record.studyTags)}"></label></div><div class="work-form-actions"><button class="btn btn-primary" type="submit">Salvar cliente</button></div></form>`;
-  const form = el.workDetailPanel.querySelector("form");
-  form.primaryGoal.value = record.primaryGoal || "whatsapp";
-  el.workDetailPanel
-    .querySelector("#btnCancelClient")
-    .addEventListener("click", () => renderWorkView());
-  form.addEventListener("submit", async (event) => {
-    event.preventDefault();
-    const payload = Object.fromEntries(new FormData(form).entries());
-    if (client) payload.id = client.id;
-    try {
-      const saved = await saveWorkspaceRecord("client", payload);
-      state.currentClientId = saved.id;
-      renderWorkView();
-      showToast("Cliente salvo localmente", "success");
     } catch (error) {
       showToast(error.message, "danger");
     }
