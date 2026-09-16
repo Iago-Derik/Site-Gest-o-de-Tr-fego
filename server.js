@@ -5,7 +5,14 @@ const url = require("url");
 const crypto = require("crypto");
 const { exec } = require("child_process");
 const { GoogleAuth } = require("google-auth-library");
-const { S3Client, ListObjectsV2Command, PutObjectCommand, HeadObjectCommand } = require("@aws-sdk/client-s3");
+const {
+  S3Client,
+  ListObjectsV2Command,
+  PutObjectCommand,
+  HeadObjectCommand,
+  GetObjectCommand,
+  PutBucketCorsCommand,
+} = require("@aws-sdk/client-s3");
 
 const ROOT_DIR = __dirname;
 
@@ -157,6 +164,66 @@ async function uploadR2Thumb(hash, buffer) {
   );
 }
 
+// Lista todos os hashes de thumbnails já salvos no R2 (uma única chamada,
+// em vez de um HEAD por vídeo) para o front saber quais vídeos ainda
+// precisam ter a thumbnail gerada automaticamente.
+async function listR2ThumbHashes() {
+  const s3 = getR2Client();
+  const hashes = new Set();
+  let ContinuationToken;
+  do {
+    const response = await s3.send(
+      new ListObjectsV2Command({
+        Bucket: process.env.R2_BUCKET_NAME,
+        Prefix: "thumbs/",
+        ContinuationToken,
+      }),
+    );
+    for (const obj of response.Contents || []) {
+      const name = obj.Key.slice("thumbs/".length).replace(/\.jpg$/, "");
+      if (name) hashes.add(name);
+    }
+    ContinuationToken = response.IsTruncated
+      ? response.NextContinuationToken
+      : undefined;
+  } while (ContinuationToken);
+  return hashes;
+}
+
+// O canvas usado para capturar o primeiro frame do vídeo no navegador só
+// consegue ler os pixels (toDataURL) se o <video> tiver sido carregado em
+// modo CORS. Isso exige que o bucket R2 devolva os headers Access-Control-*.
+// Sem isso, a captura falha silenciosamente e a thumbnail nunca é salva
+// (fica sempre no fundo azul de fallback). Configuramos isso uma vez,
+// automaticamente, sem depender do painel da Cloudflare.
+let r2CorsEnsured = false;
+async function ensureR2CorsConfigured() {
+  if (r2CorsEnsured || !isR2Configured()) return;
+  try {
+    await getR2Client().send(
+      new PutBucketCorsCommand({
+        Bucket: process.env.R2_BUCKET_NAME,
+        CORSConfiguration: {
+          CORSRules: [
+            {
+              AllowedOrigins: ["*"],
+              AllowedMethods: ["GET", "HEAD"],
+              AllowedHeaders: ["*"],
+              MaxAgeSeconds: 86400,
+            },
+          ],
+        },
+      }),
+    );
+    r2CorsEnsured = true;
+  } catch (e) {
+    console.error(
+      "⚠️  Não foi possível configurar CORS no bucket R2 (thumbnails automáticas podem falhar):",
+      e.message,
+    );
+  }
+}
+
 function loadConfig() {
   try {
     if (fs.existsSync(CONFIG_FILE)) {
@@ -226,8 +293,8 @@ let notesData = readJSON(NOTES_FILE, []);
 let favoritesData = readJSON(FAVORITES_FILE, []);
 let metaCache = readJSON(META_CACHE_FILE, {});
 let metaTokenStore = readJSON(META_TOKEN_FILE, null); // { access_token, expires_at, obtained_at }
-let metaOAuthState = null; // CSRF state em memória (uso local, um único usuário)
 let metaRefreshInFlight = null; // evita corridas de refresh simultâneas
+let metaTokenLoadPromise = null; // garante que o token salvo no R2 só é lido uma vez por instância
 let workspaceData = readJSON(WORKSPACE_FILE, {
   clients: [],
   campaigns: [],
@@ -244,13 +311,109 @@ function createWorkspaceId(prefix) {
   return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
 }
 
-function saveMetaTokenStore(data) {
+// --- Persistência do token da Meta em ambiente serverless (Vercel) ---
+// Em produção o disco é somente leitura (ou efêmero entre invocações), então
+// data/meta-token.json nunca sobrevive a um novo request. Para não obrigar o
+// usuário a refazer o /auth/meta/login toda hora, também guardamos o token no
+// R2 (que já está configurado para os vídeos/thumbnails). Como o bucket tem
+// uma URL pública (R2_PUBLIC_URL), o token é criptografado antes de subir —
+// assim, mesmo que alguém descubra o caminho do objeto, não consegue lê-lo.
+const R2_META_TOKEN_KEY = "_private/meta-token.enc";
+
+function getMetaTokenCipherKey() {
+  const secret = META_APP_SECRET || META_APP_ID || "video-hub-meta-token-fallback";
+  return crypto.createHash("sha256").update(secret).digest();
+}
+
+function encryptMetaTokenPayload(data) {
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv("aes-256-gcm", getMetaTokenCipherKey(), iv);
+  const encrypted = Buffer.concat([
+    cipher.update(Buffer.from(JSON.stringify(data), "utf8")),
+    cipher.final(),
+  ]);
+  const authTag = cipher.getAuthTag();
+  return Buffer.concat([iv, authTag, encrypted]).toString("base64");
+}
+
+function decryptMetaTokenPayload(base64Data) {
+  try {
+    const raw = Buffer.from(base64Data, "base64");
+    const iv = raw.subarray(0, 12);
+    const authTag = raw.subarray(12, 28);
+    const encrypted = raw.subarray(28);
+    const decipher = crypto.createDecipheriv(
+      "aes-256-gcm",
+      getMetaTokenCipherKey(),
+      iv,
+    );
+    decipher.setAuthTag(authTag);
+    const decrypted = Buffer.concat([
+      decipher.update(encrypted),
+      decipher.final(),
+    ]);
+    return JSON.parse(decrypted.toString("utf8"));
+  } catch (e) {
+    return null;
+  }
+}
+
+async function readMetaTokenFromR2() {
+  try {
+    const res = await getR2Client().send(
+      new GetObjectCommand({
+        Bucket: process.env.R2_BUCKET_NAME,
+        Key: R2_META_TOKEN_KEY,
+      }),
+    );
+    const body = await res.Body.transformToString();
+    return decryptMetaTokenPayload(body);
+  } catch (e) {
+    return null; // ainda não foi conectado nenhuma vez
+  }
+}
+
+async function writeMetaTokenToR2(data) {
+  await getR2Client().send(
+    new PutObjectCommand({
+      Bucket: process.env.R2_BUCKET_NAME,
+      Key: R2_META_TOKEN_KEY,
+      Body: encryptMetaTokenPayload(data),
+      ContentType: "text/plain",
+    }),
+  );
+}
+
+// Garante que, ao "acordar" uma nova instância serverless, o token salvo
+// anteriormente no R2 seja recuperado antes de decidir que não há conexão.
+function ensureMetaTokenLoaded() {
+  if (metaTokenLoadPromise) return metaTokenLoadPromise;
+  metaTokenLoadPromise = (async () => {
+    if (!metaTokenStore && isR2Configured()) {
+      const remote = await readMetaTokenFromR2();
+      if (remote) metaTokenStore = remote;
+    }
+  })();
+  return metaTokenLoadPromise;
+}
+
+async function saveMetaTokenStore(data) {
   metaTokenStore = data;
-  writeJSON(META_TOKEN_FILE, metaTokenStore);
+  writeJSON(META_TOKEN_FILE, metaTokenStore); // uso local (dev); no-op silencioso se o disco for read-only
+  if (isR2Configured()) {
+    try {
+      await writeMetaTokenToR2(metaTokenStore);
+    } catch (e) {
+      console.error(
+        "⚠️  Não foi possível salvar o token da Meta no R2 (a conexão pode não sobreviver a um novo deploy/instância):",
+        e.message,
+      );
+    }
+  }
 }
 
 function getMetaAccessToken() {
-  // Prioridade: token obtido via OAuth (armazenado em data/meta-token.json).
+  // Prioridade: token obtido via OAuth (armazenado em data/meta-token.json e/ou no R2).
   // Cai para META_ACCESS_TOKEN do .env apenas se ainda não houver conexão feita.
   if (metaTokenStore?.access_token) return metaTokenStore.access_token;
   return process.env.META_ACCESS_TOKEN || "";
@@ -262,6 +425,37 @@ function getMetaTokenExpiresAt() {
 
 function isMetaOAuthConfigured() {
   return Boolean(META_APP_ID && META_APP_SECRET);
+}
+
+// CSRF do fluxo OAuth sem depender de estado em memória: como cada request
+// serverless pode cair numa instância diferente, guardar o "state" numa
+// variável global (como antes) fazia o /auth/callback falhar com
+// "state divergente" de forma intermitente. Em vez disso, o state é
+// auto-verificável: carimbo de tempo + assinatura HMAC com o App Secret.
+function createMetaOAuthState() {
+  const payload = `${Date.now()}`;
+  const sig = crypto
+    .createHmac("sha256", META_APP_SECRET || "video-hub-oauth-fallback")
+    .update(payload)
+    .digest("hex");
+  return `${payload}.${sig}`;
+}
+
+function isValidMetaOAuthState(state) {
+  if (!state || typeof state !== "string") return false;
+  const [payload, sig] = state.split(".");
+  // Exige exatamente 64 hex chars (tamanho de um HMAC-SHA256 em hex); evita
+  // ambiguidade de Buffer.from(..., "hex") truncando lixo à direita inválido.
+  if (!payload || !/^[0-9a-f]{64}$/i.test(sig || "")) return false;
+  const expectedSig = crypto
+    .createHmac("sha256", META_APP_SECRET || "video-hub-oauth-fallback")
+    .update(payload)
+    .digest("hex");
+  const sigBuf = Buffer.from(sig, "hex");
+  const expectedBuf = Buffer.from(expectedSig, "hex");
+  if (!crypto.timingSafeEqual(sigBuf, expectedBuf)) return false;
+  const age = Date.now() - Number(payload);
+  return age >= 0 && age < 15 * 60 * 1000; // válido por 15 minutos
 }
 
 // Troca um token (código de autorização ou token de curta duração) por um
@@ -292,6 +486,7 @@ async function exchangeForLongLivedToken(shortLivedToken) {
 // estendendo a expiração por mais ~60 dias — é isso que evita ter que voltar
 // ao painel do Facebook e copiar um token novo manualmente.
 async function refreshMetaTokenIfNeeded() {
+  await ensureMetaTokenLoaded();
   if (!metaTokenStore?.access_token || !isMetaOAuthConfigured()) return;
   const expiresAt = metaTokenStore.expires_at;
   const needsRefresh =
@@ -304,7 +499,7 @@ async function refreshMetaTokenIfNeeded() {
       const result = await exchangeForLongLivedToken(
         metaTokenStore.access_token,
       );
-      saveMetaTokenStore({
+      await saveMetaTokenStore({
         access_token: result.access_token,
         token_type: result.token_type || "bearer",
         obtained_at: new Date().toISOString(),
@@ -332,6 +527,10 @@ setInterval(
   },
   6 * 60 * 60 * 1000, // a cada 6h
 ).unref();
+
+// Configura o CORS do bucket R2 uma vez por instância (necessário para a
+// captura automática de thumbnails no navegador via canvas).
+ensureR2CorsConfigured().catch(() => {});
 
 async function fetchMeta(pathname, query = {}) {
   await refreshMetaTokenIfNeeded();
@@ -540,9 +739,22 @@ function scanDirectory(dir, baseDir = dir) {
 
 // Get list of courses with hierarchy
 async function getCoursesData() {
-  const allVideos = isR2Configured()
+  const r2Configured = isR2Configured();
+  const allVideos = r2Configured
     ? await scanR2Videos()
     : scanDirectory(getVideosAbsDir());
+
+  // Usado para o front saber quais vídeos ainda não têm uma thumbnail real
+  // (para gerar automaticamente em segundo plano, sem esperar o usuário
+  // clicar em play).
+  let existingThumbHashes = null;
+  if (r2Configured) {
+    try {
+      existingThumbHashes = await listR2ThumbHashes();
+    } catch (e) {
+      console.error("Não foi possível listar thumbnails existentes no R2:", e.message);
+    }
+  }
 
   // Sort videos naturally
   allVideos.sort((a, b) => a.sortKey.localeCompare(b.sortKey));
@@ -599,6 +811,10 @@ async function getCoursesData() {
         : `/api/video?id=${encodeURIComponent(video.id)}`);
 
     const thumbUrl = `/api/thumbnail?id=${encodeURIComponent(video.id)}`;
+    const thumbHash = crypto.createHash("md5").update(video.id).digest("hex");
+    const hasThumb = existingThumbHashes
+      ? existingThumbHashes.has(thumbHash)
+      : fs.existsSync(path.join(THUMBS_DIR, `${thumbHash}.jpg`));
 
     mData.videos.push({
       id: video.id,
@@ -622,6 +838,7 @@ async function getCoursesData() {
       notesCount: videoNotes.length,
       videoUrl,
       thumbUrl,
+      hasThumb,
     });
   }
 
@@ -791,11 +1008,10 @@ const server = http.createServer(async (req, res) => {
       );
       return;
     }
-    metaOAuthState = crypto.randomBytes(16).toString("hex");
     const params = new URLSearchParams({
       client_id: META_APP_ID,
       redirect_uri: META_REDIRECT_URI,
-      state: metaOAuthState,
+      state: createMetaOAuthState(),
       scope: META_OAUTH_SCOPES,
       response_type: "code",
     });
@@ -818,13 +1034,12 @@ const server = http.createServer(async (req, res) => {
       );
       return;
     }
-    if (!code || !state || state !== metaOAuthState) {
+    if (!code || !isValidMetaOAuthState(state)) {
       res.end(
-        `<h2>Requisição inválida (state divergente)</h2><a href="/auth/meta/login">Tentar novamente</a>`,
+        `<h2>Requisição inválida ou expirada</h2><p>O link de conexão só é válido por alguns minutos.</p><a href="/auth/meta/login">Tentar novamente</a>`,
       );
       return;
     }
-    metaOAuthState = null;
 
     try {
       // 1) troca o "code" por um token de curta duração
@@ -849,7 +1064,7 @@ const server = http.createServer(async (req, res) => {
       const longLived = await exchangeForLongLivedToken(
         shortLivedPayload.access_token,
       );
-      saveMetaTokenStore({
+      await saveMetaTokenStore({
         access_token: longLived.access_token,
         token_type: longLived.token_type || "bearer",
         obtained_at: new Date().toISOString(),
@@ -1402,6 +1617,7 @@ const server = http.createServer(async (req, res) => {
 
   // Meta Ads proxy: the access token stays exclusively in the Node process.
   if (pathname === "/api/meta/status" && method === "GET") {
+    await refreshMetaTokenIfNeeded();
     const expiresAt = getMetaTokenExpiresAt();
     res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
     res.end(
