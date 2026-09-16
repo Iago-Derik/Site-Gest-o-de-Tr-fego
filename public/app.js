@@ -59,7 +59,24 @@ async function checkAuth() {
   authScreen.style.display = "none";
   deniedScreen.style.display = "none";
   setupAccountMenu(session.user);
+  showPageLoading();
   fetchInitialData(); // Só carrega os dados DEPOIS de logado e autorizado
+}
+
+function showPageLoading() {
+  const overlay = document.getElementById("pageLoadingOverlay");
+  if (!overlay) return;
+  overlay.style.display = "flex";
+  overlay.classList.remove("fade-out");
+}
+
+function hidePageLoading() {
+  const overlay = document.getElementById("pageLoadingOverlay");
+  if (!overlay) return;
+  overlay.classList.add("fade-out");
+  setTimeout(() => {
+    overlay.style.display = "none";
+  }, 400);
 }
 
 function setupAccountMenu(user) {
@@ -144,6 +161,22 @@ document.addEventListener("DOMContentLoaded", () => {
   sidebarBackdrop?.addEventListener("click", closeSidebar);
   sidebar?.querySelectorAll(".sidebar-nav-item").forEach((item) => {
     item.addEventListener("click", closeSidebar);
+  });
+
+  // Recolher o menu lateral (desktop) — mais espaço de tela pra assistir aula,
+  // sem precisar de tela cheia. Preferência persistida junto das configurações.
+  document.getElementById("btnCollapseMainSidebar")?.addEventListener("click", async () => {
+    state.settings.navCollapsed = !state.settings.navCollapsed;
+    applyMainSidebarCollapsed(state.settings.navCollapsed);
+    try {
+      await fetch("/api/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ navCollapsed: state.settings.navCollapsed }),
+      });
+    } catch (e) {
+      console.warn("Não foi possível salvar a preferência do menu lateral:", e);
+    }
   });
 });
 // ---------------------------------
@@ -341,7 +374,6 @@ const el = {
   documentSearch: document.getElementById("documentSearch"),
   btnNewDocument: document.getElementById("btnNewDocument"),
   workReportsContent: document.getElementById("workReportsContent"),
-  btnNewReport: document.getElementById("btnNewReport"),
   metaImportPanel: document.getElementById("metaImportPanel"),
   metaConnectionStatus: document.getElementById("metaConnectionStatus"),
   metaAccountId: document.getElementById("metaAccountId"),
@@ -653,6 +685,8 @@ async function fetchInitialData() {
   } catch (err) {
     console.error("Erro ao carregar dados:", err);
     showToast("Erro ao conectar ao servidor local", "danger");
+  } finally {
+    hidePageLoading();
   }
 }
 
@@ -726,6 +760,73 @@ async function deleteNoteAPI(noteId) {
   return false;
 }
 
+async function updateNoteAPI(noteId, text) {
+  try {
+    const res = await fetch(`/api/notes/${noteId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text }),
+    });
+    const updated = await res.json();
+    const index = state.notes.findIndex((n) => n.id === noteId);
+    if (index >= 0) state.notes[index] = updated;
+    return updated;
+  } catch (err) {
+    console.error("Erro ao editar nota:", err);
+    return null;
+  }
+}
+
+// Liga os botões de editar/excluir de um card de anotação (usado tanto na
+// lista da aula atual quanto na aba "Anotações"). onChange roda depois de
+// salvar/excluir, pra cada tela re-renderizar do seu jeito.
+function attachNoteItemActions(noteEl, note, onChange) {
+  const editBtn = noteEl.querySelector(".edit-btn");
+  const deleteBtn = noteEl.querySelector(".delete-btn");
+  const textEl = noteEl.querySelector(".note-text-content");
+
+  editBtn.onclick = () => {
+    if (noteEl.querySelector(".note-edit-form")) return;
+    const form = document.createElement("div");
+    form.className = "note-edit-form";
+    form.innerHTML = `
+      <textarea class="note-edit-textarea" rows="2">${note.text}</textarea>
+      <div class="note-edit-actions">
+        <button type="button" class="btn btn-ghost btn-sm note-edit-cancel">Cancelar</button>
+        <button type="button" class="btn btn-primary btn-sm note-edit-save">Salvar</button>
+      </div>
+    `;
+    textEl.replaceWith(form);
+    const textarea = form.querySelector("textarea");
+    textarea.focus();
+    textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+
+    form.querySelector(".note-edit-cancel").onclick = () => form.replaceWith(textEl);
+    form.querySelector(".note-edit-save").onclick = async () => {
+      const newText = textarea.value.trim();
+      if (!newText) {
+        showToast("A anotação não pode ficar vazia", "warning");
+        return;
+      }
+      const updated = await updateNoteAPI(note.id, newText);
+      if (updated) {
+        showToast("Anotação atualizada", "success");
+        onChange();
+      } else {
+        showToast("Não foi possível salvar a anotação", "danger");
+      }
+    };
+  };
+
+  deleteBtn.onclick = async () => {
+    if (confirm("Deseja excluir esta anotação?")) {
+      await deleteNoteAPI(note.id);
+      showToast("Anotação excluída", "info");
+      onChange();
+    }
+  };
+}
+
 async function saveSettingsAPI(newSettings) {
   const requestId = ++state.settingsRequestId;
   try {
@@ -763,11 +864,16 @@ function applySettings(s) {
     el.ctrlVolumeSlider.value = s.volume;
   }
   applySidebarCollapsed(Boolean(s.sidebarCollapsed));
+  applyMainSidebarCollapsed(Boolean(s.navCollapsed));
 }
 
 function applySidebarCollapsed(collapsed) {
   el.playerSidebar?.classList.toggle("collapsed", collapsed);
   el.playerLayout?.classList.toggle("sidebar-collapsed", collapsed);
+}
+
+function applyMainSidebarCollapsed(collapsed) {
+  document.getElementById("appSidebar")?.classList.toggle("collapsed", collapsed);
 }
 
 // --------------------------------------------------------------------------
@@ -807,6 +913,15 @@ async function saveWorkspaceRecord(type, payload) {
     throw new Error(result.error || "Falha ao salvar registro");
   state.workspace = result.workspace;
   return result.record;
+}
+
+async function deleteWorkspaceRecord(type, id) {
+  const response = await fetch(`/api/workspace/${type}/${id}`, { method: "DELETE" });
+  const result = await response.json();
+  if (!response.ok || !result.success)
+    throw new Error(result.error || "Falha ao excluir registro");
+  state.workspace = result.workspace;
+  return result.workspace;
 }
 
 function selectedWorkClient() {
@@ -920,7 +1035,7 @@ function renderWorkDocuments() {
           const action = doc.storageKey
             ? `<button class="btn btn-ghost btn-sm" data-download-doc="${escapeHTML(doc.id)}">Baixar</button>`
             : `<a class="btn btn-ghost btn-sm" href="${escapeHTML(doc.url || "#")}" target="_blank" rel="noreferrer">Abrir</a>`;
-          return `<article class="work-document-card"><div class="document-card-icon">DOC</div><div><span class="eyebrow-label">${escapeHTML(doc.kind || "MATERIAL")}</span><h3>${escapeHTML(doc.name)}</h3><p>Cliente: <strong>${escapeHTML(client?.name || "Não associado")}</strong></p><small>${escapeHTML(doc.status || "Rascunho")}</small>${sizeLabel}</div>${action}</article>`;
+          return `<article class="work-document-card"><div class="document-card-icon">DOC</div><div><span class="eyebrow-label">${escapeHTML(doc.kind || "MATERIAL")}</span><h3>${escapeHTML(doc.name)}</h3><p>Cliente: <strong>${escapeHTML(client?.name || "Não associado")}</strong></p><small>${escapeHTML(doc.status || "Rascunho")}</small>${sizeLabel}</div><div class="work-document-actions">${action}<button class="icon-btn-ghost danger" data-delete-doc="${escapeHTML(doc.id)}" title="Excluir documento"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button></div></article>`;
         })
         .join("")
     : `<div class="work-empty-state compact"><span class="work-empty-icon">DOC</span><h2>Nenhum documento encontrado</h2><p>Adicione uma proposta, briefing, apresentação ou relatório e associe-o a um cliente.</p></div>`;
@@ -928,6 +1043,19 @@ function renderWorkDocuments() {
     btn.addEventListener("click", () => {
       const doc = docs.find((item) => item.id === btn.dataset.downloadDoc);
       if (doc) downloadDocument(doc);
+    });
+  });
+  el.workDocumentsGrid.querySelectorAll("[data-delete-doc]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const doc = docs.find((item) => item.id === btn.dataset.deleteDoc);
+      if (!doc || !confirm(`Excluir o documento "${doc.name}"?`)) return;
+      try {
+        await deleteWorkspaceRecord("document", doc.id);
+        showToast("Documento excluído", "info");
+        renderWorkDocuments();
+      } catch (error) {
+        showToast(error.message, "danger");
+      }
     });
   });
 }
@@ -1120,60 +1248,109 @@ async function saveLookerStudioUrl() {
 function renderWorkReports() {
   renderMetricPickers();
   renderLookerEmbed();
-  const reports = state.workspace.reports || [];
-  if (!reports.length) {
-    el.workReportsContent.innerHTML = `${state.metaInsights ? renderMetaDashboard(state.metaInsights) : ""}${state.gaInsights ? renderGaDashboard(state.gaInsights) : ""}<div class="work-empty-state compact"><span class="work-empty-icon">+</span><h2>Nenhum dashboard salvo</h2><p>Crie um relatório para visualizar os dados de um cliente por período e objetivo.</p><button class="btn btn-primary" id="btnEmptyNewReport">Criar relatório</button></div>`;
-    el.workReportsContent
-      .querySelector("#btnEmptyNewReport")
-      .addEventListener("click", openReportEditor);
-    renderInsightCharts();
+  const dashboardsHtml = `${state.metaInsights ? renderMetaDashboard(state.metaInsights) : ""}${state.gaInsights ? renderGaDashboard(state.gaInsights) : ""}`;
+  el.workReportsContent.innerHTML = dashboardsHtml + renderSavedDashboardsSection();
+
+  document.getElementById("btnSaveMetaPreset")?.addEventListener("click", () => saveDashboardPreset("meta"));
+  document.getElementById("btnSaveGaPreset")?.addEventListener("click", () => saveDashboardPreset("ga4"));
+  wireSavedDashboardActions();
+  renderInsightCharts();
+}
+
+// --------------------------------------------------------------------------
+// DASHBOARDS SALVOS POR CLIENTE
+// --------------------------------------------------------------------------
+// Substitui o antigo "relatório" manual (nome/período/notas digitados à mão,
+// sem ligação real com os dados) por presets de verdade: salva a conta/
+// propriedade, métricas e tipo de gráfico já configurados, pra não precisar
+// redigitar tudo toda vez que voltar num cliente.
+const PLATFORM_LABEL = { meta: "Meta Ads", ga4: "GA4" };
+
+function renderSavedDashboardsSection() {
+  const client = (state.workspace.clients || []).find((c) => c.id === state.currentClientId);
+  if (!client) {
+    return `<div class="saved-dashboards-section"><p class="work-muted">Selecione um cliente na aba "Clientes e campanhas" para salvar e ver os dashboards dele aqui.</p></div>`;
+  }
+  const presets = (state.workspace.reports || []).filter((r) => r.clientId === client.id);
+  const list = presets.length
+    ? presets
+        .map(
+          (p) =>
+            `<div class="saved-dashboard-chip"><span class="chip-platform ${escapeHTML(p.platform)}">${PLATFORM_LABEL[p.platform] || p.platform}</span><span class="chip-label">${escapeHTML(p.label)}</span><button class="chip-icon-btn" data-load-preset="${escapeHTML(p.id)}" title="Carregar este dashboard"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg></button><button class="chip-icon-btn danger" data-delete-preset="${escapeHTML(p.id)}" title="Excluir"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button></div>`,
+        )
+        .join("")
+    : `<p class="work-muted">Gere um dashboard acima e clique em "Salvar dashboard" para não precisar reconfigurar tudo da próxima vez.</p>`;
+  return `<div class="saved-dashboards-section"><div class="work-section-heading"><div><span class="eyebrow-label">DASHBOARDS SALVOS</span><h3>Para ${escapeHTML(client.name)}</h3></div></div><div class="saved-dashboard-list">${list}</div></div>`;
+}
+
+function wireSavedDashboardActions() {
+  el.workReportsContent.querySelectorAll("[data-load-preset]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const preset = (state.workspace.reports || []).find((r) => r.id === btn.dataset.loadPreset);
+      if (preset) loadDashboardPreset(preset);
+    });
+  });
+  el.workReportsContent.querySelectorAll("[data-delete-preset]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      if (!confirm("Excluir este dashboard salvo?")) return;
+      try {
+        await deleteWorkspaceRecord("report", btn.dataset.deletePreset);
+        showToast("Dashboard removido", "info");
+        renderWorkReports();
+      } catch (error) {
+        showToast(error.message, "danger");
+      }
+    });
+  });
+}
+
+async function saveDashboardPreset(platform) {
+  const client = (state.workspace.clients || []).find((c) => c.id === state.currentClientId);
+  if (!client) {
+    showToast("Selecione um cliente antes de salvar o dashboard", "warning");
     return;
   }
-  el.workReportsContent.innerHTML = `${state.metaInsights ? renderMetaDashboard(state.metaInsights) : ""}${state.gaInsights ? renderGaDashboard(state.gaInsights) : ""}<div class="work-report-list">${reports
-    .map((report) => {
-      const client = state.workspace.clients.find(
-        (item) => item.id === report.clientId,
-      );
-      const campaigns = state.workspace.campaigns.filter(
-        (item) => item.clientId === report.clientId,
-      );
-      const spend = campaigns.reduce(
-        (sum, item) => sum + Number(item.spend || 0),
-        0,
-      );
-      const leads = campaigns.reduce(
-        (sum, item) => sum + Number(item.leads || 0),
-        0,
-      );
-      const conversions = campaigns.reduce(
-        (sum, item) => sum + Number(item.conversions || 0),
-        0,
-      );
-      const clicks = campaigns.reduce(
-        (sum, item) => sum + Number(item.clicks || 0),
-        0,
-      );
-      const impressions = campaigns.reduce(
-        (sum, item) => sum + Number(item.impressions || 0),
-        0,
-      );
-      const ctr = impressions
-        ? ((clicks / impressions) * 100).toFixed(2)
-        : "0.00";
-      const cpl = leads ? spend / leads : 0;
-      return `<article class="work-report-card"><div class="work-report-heading"><div><span class="eyebrow-label">${escapeHTML(report.type || "PERFORMANCE")}</span><h2>${escapeHTML(report.name)}</h2><p>${escapeHTML(client?.name || "Cliente removido")} · ${escapeHTML(report.period || "Período não definido")}</p></div><button class="btn btn-secondary btn-sm" data-report-edit="${report.id}">Editar dados</button></div><div class="report-metric-grid"><div><span>Investimento</span><strong>${formatCurrency(spend)}</strong></div><div><span>Impressões</span><strong>${impressions.toLocaleString("pt-BR")}</strong></div><div><span>Cliques</span><strong>${clicks.toLocaleString("pt-BR")}</strong></div><div><span>CTR</span><strong>${ctr}%</strong></div><div><span>Leads</span><strong>${leads}</strong></div><div><span>Custo por lead</span><strong>${formatCurrency(cpl)}</strong></div><div><span>Conversões</span><strong>${conversions}</strong></div><div><span>ROAS / retorno</span><strong>${escapeHTML(report.returnValue || "Não informado")}</strong></div></div><div class="report-bar"><span>Distribuição de leads</span><div><i style="width:${Math.min(100, leads ? Math.max(8, (leads / Math.max(leads, conversions || 1)) * 100) : 8)}%"></i></div></div><p class="work-report-notes">${escapeHTML(report.notes || "Adicione observações e recomendações ao editar este relatório.")}</p></article>`;
-    })
-    .join("")}</div>`;
-  el.workReportsContent
-    .querySelectorAll("[data-report-edit]")
-    .forEach((button) =>
-      button.addEventListener("click", () =>
-        openReportEditor(
-          reports.find((item) => item.id === button.dataset.reportEdit),
-        ),
-      ),
-    );
-  renderInsightCharts();
+  const payload = { clientId: client.id, platform };
+  if (platform === "meta") {
+    payload.accountId = el.metaAccountId.value.trim();
+    payload.level = el.metaQueryLevel?.value || "campaign";
+    payload.datePreset = el.metaDatePreset.value;
+    payload.chartType = el.metaChartType?.value || "bar";
+    payload.metrics = getSelectedMetrics("meta", ["impressions", "clicks", "spend"]);
+    payload.label = `${payload.accountId} · ${el.metaDatePreset.selectedOptions[0]?.text || payload.datePreset}`;
+  } else {
+    payload.propertyId = el.gaPropertyId.value.trim();
+    payload.groupBy = el.gaGroupBy?.value || "date";
+    payload.datePreset = el.gaDatePreset.value;
+    payload.chartType = el.gaChartType?.value || "line";
+    payload.metrics = getSelectedMetrics("ga4", ["sessions", "conversions"]);
+    payload.label = `Propriedade ${payload.propertyId} · ${el.gaDatePreset.selectedOptions[0]?.text || payload.datePreset}`;
+  }
+  try {
+    await saveWorkspaceRecord("report", payload);
+    showToast("Dashboard salvo para este cliente", "success");
+    renderWorkReports();
+  } catch (error) {
+    showToast(error.message, "danger");
+  }
+}
+
+function loadDashboardPreset(preset) {
+  if (preset.platform === "meta") {
+    el.metaAccountId.value = preset.accountId || "";
+    if (preset.level) el.metaQueryLevel.value = preset.level;
+    if (preset.datePreset) el.metaDatePreset.value = preset.datePreset;
+    if (preset.chartType) el.metaChartType.value = preset.chartType;
+    if (preset.metrics?.length) state.selectedMetrics = { ...state.selectedMetrics, meta: preset.metrics };
+    importMetaInsights();
+  } else {
+    el.gaPropertyId.value = preset.propertyId || "";
+    if (preset.groupBy) el.gaGroupBy.value = preset.groupBy;
+    if (preset.datePreset) el.gaDatePreset.value = preset.datePreset;
+    if (preset.chartType) el.gaChartType.value = preset.chartType;
+    if (preset.metrics?.length) state.selectedMetrics = { ...state.selectedMetrics, ga4: preset.metrics };
+    importGaInsights();
+  }
 }
 
 function renderMetaDashboard(payload) {
@@ -1288,7 +1465,10 @@ function renderMetaDashboard(payload) {
           <h2>Visão Geral do Meta Ads - Conta ${escapeHTML(payload.accountId)}</h2>
           <p>Nível: ${escapeHTML(levelName)} · Período: ${escapeHTML(payload.datePreset)} · Gerado em ${new Date().toLocaleString("pt-BR")}</p>
         </div>
-        <button class="btn btn-secondary btn-sm" onclick="window.print()">Imprimir / PDF</button>
+        <div class="dashboard-heading-actions">
+          <button class="btn btn-ghost btn-sm" id="btnSaveMetaPreset">💾 Salvar dashboard</button>
+          <button class="btn btn-secondary btn-sm" onclick="window.print()">Imprimir / PDF</button>
+        </div>
       </div>
 
       <div class="chart-card">
@@ -1439,7 +1619,10 @@ function renderGaDashboard(payload) {
           <h2>Visão Geral do GA4 - Propriedade ${escapeHTML(payload.propertyId)}</h2>
           <p>Fuso: ${escapeHTML(payload.timezone || "América/São_Paulo")} · Período: ${escapeHTML(payload.datePreset)} · Gerado em ${new Date().toLocaleString("pt-BR")}</p>
         </div>
-        <button class="btn btn-secondary btn-sm" onclick="window.print()">Imprimir / PDF</button>
+        <div class="dashboard-heading-actions">
+          <button class="btn btn-ghost btn-sm" id="btnSaveGaPreset">💾 Salvar dashboard</button>
+          <button class="btn btn-secondary btn-sm" onclick="window.print()">Imprimir / PDF</button>
+        </div>
       </div>
 
       <div class="chart-card">
@@ -1613,43 +1796,6 @@ async function importMetaInsights() {
   } finally {
     el.btnImportMeta.disabled = false;
   }
-}
-
-function openReportEditor(report = null) {
-  const clients = state.workspace.clients || [];
-  if (!clients.length) {
-    showToast("Cadastre um cliente antes de criar um relatório", "warning");
-    state.workSection = "clients";
-    renderWorkView();
-    return;
-  }
-  const record = report || {
-    name: "",
-    clientId: clients[0].id,
-    type: "Performance de campanhas",
-    period: "",
-    returnValue: "",
-    notes: "",
-  };
-  el.workReportsContent.innerHTML = `<form class="work-form report-editor" id="reportForm"><div class="work-detail-heading"><div><span class="eyebrow-label">${report ? "EDITAR DASHBOARD" : "NOVO DASHBOARD"}</span><h2>Relatório personalizado</h2></div><button type="button" class="btn btn-ghost btn-sm" id="btnCancelReport">Cancelar</button></div><div class="work-form-grid"><label>Nome do relatório<input name="name" required value="${escapeHTML(record.name)}" placeholder="Ex.: Resultado de setembro"></label><label>Cliente<select name="clientId">${clients.map((client) => `<option value="${escapeHTML(client.id)}">${escapeHTML(client.name)}</option>`).join("")}</select></label><label>Tipo<select name="type"><option>Performance de campanhas</option><option>Leads e conversões</option><option>Tráfego e reconhecimento</option><option>Relatório executivo</option></select></label><label>Período<input name="period" value="${escapeHTML(record.period)}" placeholder="Ex.: Setembro de 2026"></label><label>Retorno / receita<input name="returnValue" value="${escapeHTML(record.returnValue)}" placeholder="Ex.: R$ 3.200 ou ROAS 4,2"></label><label class="full">Observações e recomendações<textarea name="notes" rows="5" placeholder="O que funcionou, próximos testes e decisões para o próximo período...">${escapeHTML(record.notes)}</textarea></label></div><div class="work-form-actions"><button class="btn btn-primary">Salvar dashboard</button></div></form>`;
-  const form = el.workReportsContent.querySelector("form");
-  form.clientId.value = record.clientId;
-  form.type.value = record.type;
-  form
-    .querySelector("#btnCancelReport")
-    .addEventListener("click", renderWorkReports);
-  form.addEventListener("submit", async (event) => {
-    event.preventDefault();
-    const payload = Object.fromEntries(new FormData(form).entries());
-    if (report) payload.id = report.id;
-    try {
-      await saveWorkspaceRecord("report", payload);
-      renderWorkReports();
-      showToast("Dashboard salvo localmente", "success");
-    } catch (error) {
-      showToast(error.message, "danger");
-    }
-  });
 }
 
 function renderWorkClientDetail(client) {
@@ -2398,9 +2544,10 @@ function renderAllCoursesView() {
     return;
   }
 
-  courses.forEach((course) => {
+  courses.forEach((course, index) => {
     const card = document.createElement("div");
-    card.className = "course-catalog-card";
+    card.className = "course-catalog-card stagger-in";
+    card.style.setProperty("--stagger-i", index);
 
     const modules = course.modules || [];
     let completedLessons = 0;
@@ -2683,6 +2830,12 @@ function renderLessonNotesList(videoId) {
         <div class="note-text-content">${escapeHTML(note.text)}</div>
       </div>
       <div class="note-item-actions">
+        <button class="note-btn-action edit-btn" title="Editar nota">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+          </svg>
+        </button>
         <button class="note-btn-action delete-btn" title="Excluir nota">
           <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2">
             <polyline points="3 6 5 6 21 6"></polyline>
@@ -2698,13 +2851,7 @@ function renderLessonNotesList(videoId) {
       showToast(`Pulou para ${note.timestampFormatted}`, "info");
     };
 
-    noteEl.querySelector(".delete-btn").onclick = async () => {
-      if (confirm("Deseja realmente excluir esta anotação?")) {
-        await deleteNoteAPI(note.id);
-        renderLessonNotesList(videoId);
-        showToast("Anotação excluída", "info");
-      }
-    };
+    attachNoteItemActions(noteEl, note, () => renderLessonNotesList(videoId));
 
     el.lessonNotesList.appendChild(noteEl);
   });
@@ -2771,7 +2918,13 @@ function renderAllNotesView() {
           <div class="note-text-content">${escapeHTML(note.text)}</div>
         </div>
         <div class="note-item-actions">
-          <button class="note-btn-action delete-btn">
+          <button class="note-btn-action edit-btn" title="Editar nota">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+            </svg>
+          </button>
+          <button class="note-btn-action delete-btn" title="Excluir nota">
             <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2">
               <polyline points="3 6 5 6 21 6"></polyline>
               <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
@@ -2784,13 +2937,7 @@ function renderAllNotesView() {
           playVideo(video, note.timestamp);
         };
 
-        item.querySelector(".delete-btn").onclick = async () => {
-          if (confirm("Deseja excluir esta anotação?")) {
-            await deleteNoteAPI(note.id);
-            renderAllNotesView();
-            showToast("Anotação excluída", "info");
-          }
-        };
+        attachNoteItemActions(item, note, () => renderAllNotesView());
 
         nList.appendChild(item);
       });
@@ -3039,7 +3186,6 @@ function initEventListeners() {
   el.documentClientFilter.addEventListener("change", renderWorkDocuments);
   el.documentSearch.addEventListener("input", renderWorkDocuments);
   el.btnNewDocument.addEventListener("click", () => openDocumentEditor());
-  el.btnNewReport.addEventListener("click", () => openReportEditor());
   el.btnImportMeta.addEventListener("click", importMetaInsights);
   el.btnImportGa.addEventListener("click", importGaInsights);
   el.metaChartType?.addEventListener("change", renderInsightCharts);
