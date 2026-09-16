@@ -823,8 +823,28 @@
         </div>
       </div>
 
+      <div class="work-kpi-toolbar">
+        <span class="work-kpi-toolbar-label">Mostrando dados de:</span>
+        <div class="work-kpi-filter" id="workKpiFilter">
+          <button class="work-kpi-filter-btn" id="workKpiFilterBtn" type="button">
+            <span id="workKpiFilterLabel">Todos os clientes</span>
+            <svg class="chevron-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="6 9 12 15 18 9"></polyline>
+            </svg>
+          </button>
+          <div class="work-kpi-filter-dropdown" id="workKpiFilterDropdown">
+            <label class="work-kpi-filter-option work-kpi-filter-all">
+              <input type="checkbox" id="workKpiFilterAll" checked>
+              <span>Todos os clientes</span>
+            </label>
+            <div class="work-kpi-filter-divider"></div>
+            <div id="workKpiFilterClientList" class="work-kpi-filter-client-list"></div>
+          </div>
+        </div>
+      </div>
+
       <div class="work-kpi-grid">
-        <div class="work-kpi"><span>Clientes ativos</span><strong id="workKpiClients">0</strong></div>
+        <div class="work-kpi"><span>Clientes selecionados</span><strong id="workKpiClients">0</strong></div>
         <div class="work-kpi"><span>Campanhas</span><strong id="workKpiCampaigns">0</strong></div>
         <div class="work-kpi"><span>Investimento</span><strong id="workKpiSpend">R$ 0,00</strong></div>
         <div class="work-kpi"><span>Leads gerados</span><strong id="workKpiLeads">0</strong></div>

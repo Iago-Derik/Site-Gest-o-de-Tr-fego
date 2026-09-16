@@ -267,6 +267,7 @@ const state = {
   settingsRequestId: 0,
   workspace: { clients: [], campaigns: [], documents: [], reports: [] },
   currentClientId: null,
+  workKpiClientIds: null, // null = todos os clientes; array = seleção específica
   workSection: "clients",
   metaInsights: null,
   gaInsights: null,
@@ -423,6 +424,12 @@ const el = {
   workKpiCampaigns: document.getElementById("workKpiCampaigns"),
   workKpiSpend: document.getElementById("workKpiSpend"),
   workKpiLeads: document.getElementById("workKpiLeads"),
+  workKpiFilter: document.getElementById("workKpiFilter"),
+  workKpiFilterBtn: document.getElementById("workKpiFilterBtn"),
+  workKpiFilterLabel: document.getElementById("workKpiFilterLabel"),
+  workKpiFilterDropdown: document.getElementById("workKpiFilterDropdown"),
+  workKpiFilterAll: document.getElementById("workKpiFilterAll"),
+  workKpiFilterClientList: document.getElementById("workKpiFilterClientList"),
   btnNewClient: document.getElementById("btnNewClient"),
   btnEmptyNewClient: document.getElementById("btnEmptyNewClient"),
   btnExportWork: document.getElementById("btnExportWork"),
@@ -996,7 +1003,79 @@ function selectedWorkClient() {
   return null;
 }
 
+// Clientes atualmente incluídos no resumo de KPIs (respeitando a seleção do
+// filtro "Mostrando dados de:"). null/vazio/todos selecionados = todos.
+function activeKpiClients() {
+  const clients = state.workspace.clients || [];
+  const selected = state.workKpiClientIds;
+  if (selected === null || selected === undefined) return clients;
+  const selectedSet = new Set(selected);
+  return clients.filter((client) => selectedSet.has(client.id));
+}
+
+function renderWorkKpis() {
+  const clients = state.workspace.clients || [];
+  const activeClients = activeKpiClients();
+  const activeIds = new Set(activeClients.map((client) => client.id));
+  const campaigns = (state.workspace.campaigns || []).filter((campaign) =>
+    activeIds.has(campaign.clientId),
+  );
+  const spend = campaigns.reduce(
+    (sum, campaign) => sum + Number(campaign.spend || 0),
+    0,
+  );
+  const leads = campaigns.reduce(
+    (sum, campaign) => sum + Number(campaign.leads || 0),
+    0,
+  );
+
+  el.workKpiClients.textContent = activeClients.length;
+  el.workKpiCampaigns.textContent = campaigns.length;
+  el.workKpiSpend.textContent = formatCurrency(spend);
+  el.workKpiLeads.textContent = leads;
+
+  const isAll = activeClients.length === clients.length;
+  if (el.workKpiFilterLabel) {
+    el.workKpiFilterLabel.textContent = isAll
+      ? "Todos os clientes"
+      : activeClients.length === 0
+        ? "Nenhum cliente selecionado"
+        : activeClients.length === 1
+          ? activeClients[0].name
+          : `${activeClients.length} clientes selecionados`;
+  }
+  if (el.workKpiFilterAll) {
+    el.workKpiFilterAll.checked = isAll;
+  }
+  if (el.workKpiFilterClientList) {
+    el.workKpiFilterClientList.innerHTML = clients
+      .map(
+        (client) =>
+          `<label class="work-kpi-filter-option"><input type="checkbox" data-kpi-client-id="${escapeHTML(client.id)}" ${activeIds.has(client.id) ? "checked" : ""}><span>${escapeHTML(client.name)}</span></label>`,
+      )
+      .join("");
+    el.workKpiFilterClientList
+      .querySelectorAll("[data-kpi-client-id]")
+      .forEach((checkbox) => {
+        checkbox.addEventListener("change", () => {
+          const allBoxes = Array.from(
+            el.workKpiFilterClientList.querySelectorAll(
+              "[data-kpi-client-id]",
+            ),
+          );
+          const checkedIds = allBoxes
+            .filter((box) => box.checked)
+            .map((box) => box.dataset.kpiClientId);
+          state.workKpiClientIds =
+            checkedIds.length === allBoxes.length ? null : checkedIds;
+          renderWorkKpis();
+        });
+      });
+  }
+}
+
 function renderWorkView() {
+  renderWorkKpis();
   [
     el.workClientsSection,
     el.workDocumentsSection,
@@ -1031,20 +1110,8 @@ function renderWorkClientsView() {
       .includes(query),
   );
   const campaigns = state.workspace.campaigns || [];
-  const spend = campaigns.reduce(
-    (sum, campaign) => sum + Number(campaign.spend || 0),
-    0,
-  );
-  const leads = campaigns.reduce(
-    (sum, campaign) => sum + Number(campaign.leads || 0),
-    0,
-  );
 
   el.workClientCount.textContent = clients.length;
-  el.workKpiClients.textContent = clients.length;
-  el.workKpiCampaigns.textContent = campaigns.length;
-  el.workKpiSpend.textContent = formatCurrency(spend);
-  el.workKpiLeads.textContent = leads;
   el.workClientList.innerHTML = "";
 
   if (!visibleClients.length) {
@@ -1103,7 +1170,7 @@ function renderWorkDocuments() {
           return `<article class="work-document-card"><div class="document-card-icon">DOC</div><div><span class="eyebrow-label">${escapeHTML(doc.kind || "MATERIAL")}</span><h3>${escapeHTML(doc.name)}</h3><p>Cliente: <strong>${escapeHTML(client?.name || "Não associado")}</strong></p><small>${escapeHTML(doc.status || "Rascunho")}</small>${sizeLabel}</div><div class="work-document-actions">${action}<button class="icon-btn-ghost danger" data-delete-doc="${escapeHTML(doc.id)}" title="Excluir documento"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button></div></article>`;
         })
         .join("")
-    : `<div class="work-empty-state compact"><span class="work-empty-icon">DOC</span><h2>Nenhum documento encontrado</h2><p>Adicione uma proposta, briefing, apresentação ou relatório e associe-o a um cliente.</p></div>`;
+    : `<div class="work-empty-state compact"><span class="work-empty-icon"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg></span><h2>Nenhum documento encontrado</h2><p>Adicione uma proposta, briefing, apresentação ou relatório e associe-o a um cliente.</p></div>`;
   el.workDocumentsGrid.querySelectorAll("[data-download-doc]").forEach((btn) => {
     btn.addEventListener("click", () => {
       const doc = docs.find((item) => item.id === btn.dataset.downloadDoc);
@@ -3282,6 +3349,20 @@ function initEventListeners() {
   });
   el.documentClientFilter.addEventListener("change", renderWorkDocuments);
   el.documentSearch.addEventListener("input", renderWorkDocuments);
+
+  el.workKpiFilterBtn?.addEventListener("click", (event) => {
+    event.stopPropagation();
+    el.workKpiFilter?.classList.toggle("open");
+  });
+  document.addEventListener("click", (event) => {
+    if (el.workKpiFilter && !el.workKpiFilter.contains(event.target)) {
+      el.workKpiFilter.classList.remove("open");
+    }
+  });
+  el.workKpiFilterAll?.addEventListener("change", () => {
+    state.workKpiClientIds = el.workKpiFilterAll.checked ? null : [];
+    renderWorkKpis();
+  });
   el.btnNewDocument.addEventListener("click", () => openDocumentEditor());
   el.btnImportMeta.addEventListener("click", importMetaInsights);
   el.btnImportGa.addEventListener("click", importGaInsights);
