@@ -209,10 +209,12 @@ document.addEventListener("DOMContentLoaded", () => {
   const openSidebar = () => {
     sidebar?.classList.add("open");
     sidebarBackdrop?.classList.add("open");
+    document.body.classList.add("sidebar-drawer-open");
   };
   const closeSidebar = () => {
     sidebar?.classList.remove("open");
     sidebarBackdrop?.classList.remove("open");
+    document.body.classList.remove("sidebar-drawer-open");
   };
   document.getElementById("btnToggleSidebar")?.addEventListener("click", openSidebar);
   document.getElementById("btnCloseSidebar")?.addEventListener("click", closeSidebar);
@@ -327,6 +329,7 @@ const el = {
 
   homeFilterTabs: document.getElementById("homeFilterTabs"),
   homeVideosGrid: document.getElementById("homeVideosGrid"),
+  homeShelfTitle: document.getElementById("homeShelfTitle"),
   inProgressCountBadge: document.getElementById("inProgressCountBadge"),
   curriculumTrackContainer: document.getElementById("curriculumTrackContainer"),
   homeTopicsList: document.getElementById("homeTopicsList"),
@@ -983,11 +986,14 @@ async function deleteWorkspaceRecord(type, id) {
 }
 
 function selectedWorkClient() {
-  return (
-    state.workspace.clients.find(
-      (client) => client.id === state.currentClientId,
-    ) || null
-  );
+  const clients = state.workspace.clients || [];
+  const found = clients.find((client) => client.id === state.currentClientId);
+  if (found) return found;
+  if (clients.length) {
+    state.currentClientId = clients[0].id;
+    return clients[0];
+  }
+  return null;
 }
 
 function renderWorkView() {
@@ -1017,6 +1023,7 @@ function renderWorkView() {
 function renderWorkClientsView() {
   if (!el.workClientList) return;
   const clients = state.workspace.clients || [];
+  selectedWorkClient(); // garante que currentClientId aponte para um cliente existente antes de pintar a lista
   const query = (el.workClientSearch?.value || "").toLowerCase().trim();
   const visibleClients = clients.filter((client) =>
     `${client.name} ${client.business} ${client.city}`
@@ -2341,6 +2348,17 @@ function renderHomeVideosGrid() {
     });
   }
 
+  const shelfTitles = {
+    all: "Todas as Aulas",
+    in_progress: "Aulas em Andamento",
+    completed: "Aulas Concluídas",
+    unwatched: "Aulas Não Assistidas",
+    favorites: "Aulas Favoritas",
+  };
+  if (el.homeShelfTitle) {
+    el.homeShelfTitle.textContent =
+      shelfTitles[state.currentFilter] || shelfTitles.all;
+  }
   el.inProgressCountBadge.textContent = filtered.length;
   el.homeVideosGrid.innerHTML = "";
 
@@ -2624,7 +2642,7 @@ function renderAllCoursesView() {
       <div class="course-catalog-header">
         <div class="course-catalog-title-area">
           <span class="course-catalog-tag">CURSO DISPONÍVEL</span>
-          <h2 class="course-catalog-title">TÍTULO: ${course.cleanTitle || course.title}</h2>
+          <h2 class="course-catalog-title">${course.cleanTitle || course.title}</h2>
         </div>
         <div class="course-catalog-stats">
           <div class="catalog-stat-pill">
@@ -2740,7 +2758,11 @@ function renderAllCoursesView() {
 function renderPlayerDetails(video) {
   state.currentVideo = video;
   el.playerLessonCleanTitle.textContent = video.cleanTitle;
-  el.playerLessonFileName.textContent = video.id;
+  el.playerLessonFileName.textContent = (video.fileName || video.id).replace(
+    /\.[a-zA-Z0-9]+$/,
+    "",
+  );
+  el.playerLessonFileName.title = video.id;
   el.bcCourse.textContent = video.cleanCourse;
   el.bcModule.textContent = video.cleanModule;
 
@@ -2916,6 +2938,28 @@ function renderLessonNotesList(videoId) {
 }
 
 // 10. All Notes View
+function prettifyOrphanSegment(segment) {
+  return segment
+    .replace(/\.[a-zA-Z0-9]+$/, "")
+    .replace(/^\d+[\s._-]*/, "")
+    .replace(/[_]+/g, " ")
+    .trim();
+}
+
+// Anotações de vídeos que não existem mais no catálogo atual (ex.: aulas
+// locais antigas, de antes da migração para o R2) caem aqui — sem isso o
+// título mostrado seria o caminho de arquivo cru, com extensão e tudo.
+function buildOrphanNoteVideo(vId) {
+  const parts = vId.split("/").filter(Boolean);
+  const fileName = parts[parts.length - 1] || vId;
+  return {
+    id: vId,
+    cleanTitle: prettifyOrphanSegment(fileName) || fileName,
+    cleanModule: parts.length >= 2 ? prettifyOrphanSegment(parts[parts.length - 2]) : "Geral",
+    cleanCourse: parts.length >= 3 ? prettifyOrphanSegment(parts[0]) : "Curso",
+  };
+}
+
 function renderAllNotesView() {
   const allVideos = getAllCurrentCourseVideos();
   const videoMap = new Map();
@@ -2939,12 +2983,7 @@ function renderAllNotesView() {
   });
 
   for (const [vId, vNotes] of Object.entries(grouped)) {
-    const video = videoMap.get(vId) || {
-      id: vId,
-      cleanTitle: vId,
-      cleanModule: "Geral",
-      cleanCourse: "Curso",
-    };
+    const video = videoMap.get(vId) || buildOrphanNoteVideo(vId);
     const groupEl = document.createElement("div");
     groupEl.className = "course-notes-group";
     groupEl.innerHTML = `
