@@ -296,9 +296,20 @@ const PUBLIC_DIR = path.join(ROOT_DIR, "public");
 // A chave anônima do Supabase não é secreta (é feita para rodar no navegador);
 // a segurança real vem de validar o token do usuário aqui no servidor e
 // checar o e-mail contra a lista de autorizados abaixo.
-const SUPABASE_URL = process.env.SUPABASE_URL || "https://olofdrngtjktrvgopyun.supabase.co";
-const SUPABASE_ANON_KEY =
-  process.env.SUPABASE_ANON_KEY || "sb_publishable_5J0eCJlr7nPZcvIpopnhyQ_aHdlFfB4";
+// Aceita tanto a URL "raiz" do projeto quanto a variante com /rest/v1 (como
+// está documentada no .env.example) — o supabase-js precisa da raiz para
+// montar as chamadas de /auth/v1 internamente; sem essa normalização, um
+// SUPABASE_URL com o sufixo /rest/v1 faz toda validação de token falhar e
+// NINGUÉM consegue entrar, mesmo com um e-mail autorizado.
+const SUPABASE_URL = (
+  process.env.SUPABASE_URL || "https://olofdrngtjktrvgopyun.supabase.co"
+)
+  .trim()
+  .replace(/\/rest\/v1\/?$/i, "")
+  .replace(/\/+$/, "");
+const SUPABASE_ANON_KEY = (
+  process.env.SUPABASE_ANON_KEY || "sb_publishable_5J0eCJlr7nPZcvIpopnhyQ_aHdlFfB4"
+).trim();
 const supabaseAuth = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const ALLOWED_EMAILS = new Set(
   (
@@ -316,6 +327,9 @@ function isEmailAllowed(email) {
 
 // Extrai e valida o token Supabase do request (header Authorization ou,
 // para links abertos via navegação direta, um ?token= na própria URL).
+// Loga o motivo da falha (sem o token) para facilitar diagnosticar problemas
+// de configuração (ex.: SUPABASE_URL/ANON_KEY errados na Vercel), que fariam
+// TODO mundo cair em "acesso não autorizado" mesmo com e-mail liberado.
 async function getAuthenticatedEmail(req, parsedUrl) {
   const authHeader = req.headers.authorization || "";
   const token = authHeader.startsWith("Bearer ")
@@ -324,9 +338,16 @@ async function getAuthenticatedEmail(req, parsedUrl) {
   if (!token) return null;
   try {
     const { data, error } = await supabaseAuth.auth.getUser(token);
-    if (error || !data?.user?.email) return null;
+    if (error || !data?.user?.email) {
+      console.error(
+        "⚠️  Falha ao validar sessão do Supabase (verifique SUPABASE_URL/SUPABASE_ANON_KEY na Vercel):",
+        error?.message || "usuário/e-mail ausente na resposta",
+      );
+      return null;
+    }
     return data.user.email.toLowerCase();
   } catch (e) {
+    console.error("⚠️  Erro inesperado ao validar sessão do Supabase:", e.message);
     return null;
   }
 }
