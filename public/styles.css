@@ -501,6 +501,14 @@ body {
   transition: var(--transition-fast);
   text-decoration: none;
 }
+.btn:active {
+  transform: scale(0.97);
+}
+.btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none !important;
+}
 .btn-sm {
   padding: 6px 12px;
   font-size: 12px;
@@ -3543,4 +3551,310 @@ body {
   .objective-row select {
     grid-column: 1 / -1;
   }
+}
+
+/* ==========================================================================
+   ACCESS GATE - LOGIN & ACESSO NEGADO
+   ========================================================================== */
+.gate-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-app);
+  overflow: hidden;
+  padding: 20px;
+}
+.gate-ambient {
+  position: absolute;
+  inset: -20%;
+  background:
+    radial-gradient(circle at 20% 20%, var(--accent-primary-glow), transparent 45%),
+    radial-gradient(circle at 80% 75%, rgba(6, 182, 212, 0.25), transparent 45%);
+  filter: blur(60px);
+  animation: gateDrift 14s ease-in-out infinite alternate;
+}
+.gate-ambient-danger {
+  background:
+    radial-gradient(circle at 25% 25%, rgba(239, 68, 68, 0.35), transparent 45%),
+    radial-gradient(circle at 80% 80%, rgba(244, 63, 94, 0.2), transparent 45%);
+}
+@keyframes gateDrift {
+  from { transform: translate3d(0, 0, 0) scale(1); }
+  to { transform: translate3d(2%, -2%, 0) scale(1.05); }
+}
+.gate-card {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 440px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xl);
+  padding: 40px 36px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 16px;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.6);
+  animation: fadeInDown 0.4s ease-out;
+  backdrop-filter: blur(20px);
+}
+.gate-card-danger { border-color: rgba(239, 68, 68, 0.35); }
+.gate-brand { justify-content: center; margin-bottom: 8px; }
+.gate-denied-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent-danger);
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+.gate-title {
+  font-size: 21px;
+  font-weight: 800;
+  line-height: 1.3;
+  margin: 0;
+}
+.gate-subtitle {
+  font-size: 13.5px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin: 0;
+}
+.gate-subtitle strong { color: var(--text-primary); }
+.gate-btn {
+  width: 100%;
+  justify-content: center;
+  gap: 10px;
+  padding: 12px 20px;
+  margin-top: 8px;
+}
+.gate-footnote {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  margin: 4px 0 0;
+}
+
+/* ==========================================================================
+   ACCOUNT MENU
+   ========================================================================== */
+.account-menu-wrapper { position: relative; }
+.account-avatar-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1px solid var(--border-subtle);
+  background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+  color: #fff;
+  font-weight: 800;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+.account-avatar-btn:hover {
+  transform: scale(1.06);
+  box-shadow: 0 0 0 3px var(--accent-primary-glow);
+}
+.account-menu-dropdown {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  min-width: 240px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.6);
+  padding: 8px;
+  opacity: 0;
+  transform: translateY(-6px) scale(0.98);
+  pointer-events: none;
+  transition: opacity var(--transition-fast), transform var(--transition-fast);
+  z-index: 500;
+}
+.account-menu-dropdown.open {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  pointer-events: auto;
+}
+.account-menu-header {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px 12px;
+  border-bottom: 1px solid var(--border-subtle);
+  margin-bottom: 6px;
+}
+.account-menu-label {
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+}
+.account-menu-email {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text-primary);
+  word-break: break-all;
+}
+.account-menu-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  background: none;
+  border: none;
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+.account-menu-item:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-primary);
+}
+.account-menu-item.danger:hover {
+  background: rgba(239, 68, 68, 0.12);
+  color: var(--accent-danger);
+}
+
+/* ==========================================================================
+   DASHBOARD BUILDER - METRIC PICKER, CHARTS & LOOKER STUDIO EMBED
+   ========================================================================== */
+.meta-import-controls label.full {
+  flex-basis: 100%;
+}
+.metric-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  padding-top: 4px;
+  border-top: 1px dashed var(--border-subtle);
+}
+.metric-picker-label {
+  width: 100%;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 2px;
+}
+.metric-picker-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  user-select: none;
+}
+.metric-picker-item input {
+  accent-color: var(--accent-primary);
+  cursor: pointer;
+}
+.metric-picker-item:hover { color: var(--text-primary); }
+
+.chart-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 18px 20px 8px;
+  margin-bottom: 18px;
+}
+.chart-card h3 {
+  font-size: 13.5px;
+  margin-bottom: 12px;
+  color: var(--text-secondary);
+}
+.chart-card-canvas-wrap {
+  position: relative;
+  height: 320px;
+}
+
+.looker-embed-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px;
+  background: linear-gradient(135deg, rgba(251, 188, 5, 0.1), rgba(234, 67, 53, 0.05));
+  border: 1px solid rgba(251, 188, 5, 0.28);
+  border-radius: var(--radius-lg);
+  grid-column: 1 / -1;
+}
+.looker-embed-panel h3 { margin-top: 4px; font-size: 15px; }
+.looker-embed-panel p { color: var(--text-muted); font-size: 11px; margin-top: 4px; }
+.looker-embed-container iframe {
+  width: 100%;
+  height: 480px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: #fff;
+}
+
+/* Settings modal - account section */
+.settings-account-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.settings-account-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+  color: #fff;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.settings-account-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+.settings-account-info strong {
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Sidebar collapse toggle (curriculum sidebar in the player view) */
+.player-layout.sidebar-collapsed {
+  grid-template-columns: 1fr 60px;
+  transition: grid-template-columns var(--transition-smooth);
+}
+.player-sidebar.collapsed {
+  padding: 18px 8px;
+  overflow: hidden;
+}
+.player-sidebar.collapsed .sidebar-title-area,
+.player-sidebar.collapsed .sidebar-search,
+.player-sidebar.collapsed .sidebar-filter-pills,
+.player-sidebar.collapsed .sidebar-modules-list {
+  display: none;
+}
+.player-sidebar.collapsed .sidebar-header {
+  justify-content: center;
+}
+.player-sidebar.collapsed .sidebar-collapse-btn svg {
+  transform: rotate(180deg);
 }

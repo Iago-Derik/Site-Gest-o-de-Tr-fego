@@ -11,14 +11,51 @@
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
   <!-- Supabase CDN -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- Chart.js - usado no construtor de dashboards do Meta Ads / GA4 -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 </head>
 
 <body class="theme-dark">
 <!-- TELA DE LOGIN (Oculta o app até autenticar) -->
-  <div id="authScreen" style="position: fixed; inset: 0; background: var(--bg-app); z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px;">
-    <h2>Video Hub Pro</h2>
-    <p style="color: var(--text-muted);">Faça login para acessar sua plataforma.</p>
-    <button id="btnLoginGoogle" class="btn btn-primary">Entrar com Google</button>
+  <div id="authScreen" class="gate-screen">
+    <div class="gate-ambient"></div>
+    <div class="gate-card">
+      <div class="brand gate-brand">
+        <div class="brand-icon">
+          <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="5 3 19 12 5 21 5 3"></polygon>
+          </svg>
+          <span class="brand-pulse"></span>
+        </div>
+        <div class="brand-text">
+          <span class="brand-name">VIDEO HUB</span>
+          <span class="brand-badge">PRO 2.0</span>
+        </div>
+      </div>
+      <h1 class="gate-title">Sua central de aulas e gestão de tráfego</h1>
+      <p class="gate-subtitle">Entre com sua conta Google para assistir às aulas, acompanhar clientes e visualizar seus dashboards de Meta Ads e GA4.</p>
+      <button id="btnLoginGoogle" class="btn btn-primary gate-btn">
+        <svg viewBox="0 0 48 48" width="18" height="18"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3c-1.6 4.6-6 8-11.3 8-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.1 8 3l6-6C34.9 6 29.7 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.6 15.9 18.9 13 24 13c3.1 0 5.8 1.1 8 3l6-6C34.9 6 29.7 4 24 4c-7.6 0-14.1 4.3-17.7 10.7z"/><path fill="#4CAF50" d="M24 44c5.6 0 10.6-1.9 14.5-5.2l-6.7-5.7C29.7 34.9 27 36 24 36c-5.3 0-9.7-3.4-11.3-8l-6.6 5.1C9.8 39.6 16.3 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.1-4.1 5.5l6.7 5.7C41.6 36 44 30.5 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg>
+        <span>Entrar com Google</span>
+      </button>
+      <p class="gate-footnote">Acesso restrito a contas autorizadas pelo gestor da plataforma.</p>
+    </div>
+  </div>
+
+  <!-- TELA DE ACESSO NEGADO (conta logada, mas sem permissão) -->
+  <div id="accessDeniedScreen" class="gate-screen" style="display:none;">
+    <div class="gate-ambient gate-ambient-danger"></div>
+    <div class="gate-card gate-card-danger">
+      <div class="gate-denied-icon">
+        <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="4.9" y1="4.9" x2="19.1" y2="19.1"></line>
+        </svg>
+      </div>
+      <h1 class="gate-title">Acesso não autorizado</h1>
+      <p class="gate-subtitle">A conta <strong id="deniedEmailLabel">—</strong> não tem permissão para acessar esta plataforma. Se você acredita que isso é um engano, entre em contato com o administrador para liberar seu e-mail.</p>
+      <button id="btnDeniedSignOut" class="btn btn-secondary gate-btn">Tentar com outra conta</button>
+    </div>
   </div>
 
 
@@ -154,6 +191,27 @@
         <button class="action-circle-btn" id="btnShortcuts" title="Atalhos de Teclado">
           <span style="font-weight: 700; font-size: 13px;">?</span>
         </button>
+
+        <!-- Menu de Conta (trocar de conta / sair) -->
+        <div class="account-menu-wrapper">
+          <button class="account-avatar-btn" id="btnAccountMenu" title="Sua conta">
+            <span id="accountAvatarInitial">?</span>
+          </button>
+          <div class="account-menu-dropdown" id="accountMenuDropdown">
+            <div class="account-menu-header">
+              <span class="account-menu-label">Conectado como</span>
+              <span class="account-menu-email" id="accountMenuEmail">—</span>
+            </div>
+            <button class="account-menu-item" id="btnSwitchAccount">
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"></polyline><path d="M3 11V9a4 4 0 0 1 4-4h14"></path><polyline points="7 23 3 19 7 15"></polyline><path d="M21 13v2a4 4 0 0 1-4 4H3"></path></svg>
+              <span>Trocar de conta</span>
+            </button>
+            <button class="account-menu-item danger" id="btnSignOut">
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+              <span>Sair</span>
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   </header>
@@ -814,8 +872,17 @@
                   <option value="this_month">Este mês</option>
                 </select>
               </label>
+              <label>Tipo de gráfico
+                <select id="metaChartType">
+                  <option value="bar" selected>Barras</option>
+                  <option value="line">Linha</option>
+                  <option value="pie">Pizza</option>
+                  <option value="doughnut">Rosca</option>
+                </select>
+              </label>
               <button class="btn btn-primary btn-sm" id="btnImportMeta">Gerar Dashboard Meta</button>
             </div>
+            <div class="metric-picker" id="metaMetricPicker"></div>
             <p class="meta-import-status" id="metaImportStatus"></p>
           </div>
 
@@ -834,9 +901,40 @@
                   <option value="this_month">Este mês</option>
                 </select>
               </label>
+              <label>Agrupar por
+                <select id="gaGroupBy">
+                  <option value="date" selected>Data</option>
+                  <option value="sessionDefaultChannelGroup">Canal</option>
+                  <option value="sessionSourceMedium">Origem / mídia</option>
+                  <option value="sessionCampaignName">Campanha</option>
+                  <option value="country">País</option>
+                  <option value="deviceCategory">Dispositivo</option>
+                </select>
+              </label>
+              <label>Tipo de gráfico
+                <select id="gaChartType">
+                  <option value="line" selected>Linha</option>
+                  <option value="bar">Barras</option>
+                  <option value="pie">Pizza</option>
+                  <option value="doughnut">Rosca</option>
+                </select>
+              </label>
               <button class="btn btn-primary btn-sm" id="btnImportGa">Gerar Dashboard GA4</button>
             </div>
+            <div class="metric-picker" id="gaMetricPicker"></div>
             <p class="meta-import-status" id="gaImportStatus"></p>
+          </div>
+
+          <div class="looker-embed-panel" id="lookerEmbedPanel">
+            <div><span class="eyebrow-label">EMBED · LOOKER STUDIO</span>
+              <h3>Relatório do Looker Studio para este cliente</h3>
+              <p>Monte o relatório no Looker Studio conectando Meta Ads, Google Ads e GA4 (os visuais já vêm prontos) e cole aqui o link de incorporação (Compartilhar → Incorporar relatório).</p>
+            </div>
+            <div class="meta-import-controls">
+              <label class="full">Link de incorporação<input id="lookerStudioUrl" placeholder="https://lookerstudio.google.com/embed/reporting/..."></label>
+              <button class="btn btn-primary btn-sm" id="btnSaveLookerUrl">Salvar link</button>
+            </div>
+            <div id="lookerEmbedContainer"></div>
           </div>
         </div>
         <div id="workReportsContent"></div>
@@ -854,13 +952,22 @@
       </div>
       <div class="modal-body">
 
-        <div class="form-group">
-          <label for="cfgRemoteVideosUrl">URL de Servidor/CDN Remoto para Vídeos (Opcional - Hospedagem Online):</label>
-          <div class="input-with-btn">
-            <input type="text" id="cfgRemoteVideosUrl" placeholder="Ex: https://meustorage.r2.cloudflarestorage.com/cursos">
-            <button class="btn btn-secondary btn-sm" id="btnSaveRemoteVideosUrl">Salvar URL</button>
+        <div class="form-group settings-account-group">
+          <label>Conta:</label>
+          <div class="settings-account-row">
+            <div class="settings-account-avatar" id="cfgAccountAvatar">?</div>
+            <div class="settings-account-info">
+              <strong id="cfgAccountEmail">—</strong>
+              <span class="form-hint">Conectado via Google</span>
+            </div>
+            <button class="btn btn-ghost btn-sm" id="btnCfgSwitchAccount">Trocar de conta</button>
+            <button class="btn btn-outline-danger btn-sm" id="btnCfgSignOut">Sair</button>
           </div>
-          <span class="form-hint">Se preenchido, os vídeos serão carregados diretamente desta URL base online em vez de servidos pelo backend local.</span>
+        </div>
+
+        <div class="form-group">
+          <label>Integração com Meta Ads:</label>
+          <p class="meta-import-status" id="cfgMetaConnectionStatus"></p>
         </div>
 
         <div class="form-group">
