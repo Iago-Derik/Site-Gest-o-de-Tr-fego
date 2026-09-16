@@ -23,6 +23,22 @@ window.fetch = async function () {
   return originalFetch.apply(this, [resource, config]);
 };
 
+// Rede de segurança: se a sessão só ficar disponível um instante depois do
+// carregamento inicial (ex.: troca do código OAuth ainda em andamento),
+// reavalia o acesso assim que o Supabase sinalizar a mudança.
+let lastAuthCheckUserId = null;
+supabaseClient.auth.onAuthStateChange((event, session) => {
+  const userId = session?.user?.id || null;
+  if (event === "SIGNED_OUT") {
+    lastAuthCheckUserId = null;
+    return;
+  }
+  if ((event === "SIGNED_IN" || event === "TOKEN_REFRESHED") && userId !== lastAuthCheckUserId) {
+    lastAuthCheckUserId = userId;
+    checkAuth();
+  }
+});
+
 // Lógica de Autenticação
 function showScreen(screenEl) {
   ["authScreen", "accessDeniedScreen"].forEach((id) => {
@@ -31,15 +47,57 @@ function showScreen(screenEl) {
   });
 }
 
+function showAuthError(message) {
+  const el = document.getElementById("authErrorMessage");
+  if (!el) return;
+  if (!message) {
+    el.style.display = "none";
+    el.textContent = "";
+    return;
+  }
+  el.textContent = message;
+  el.style.display = "block";
+}
+
+function consumeOAuthErrorFromUrl() {
+  const hashParams = new URLSearchParams(
+    window.location.hash ? window.location.hash.slice(1) : "",
+  );
+  const searchParams = new URLSearchParams(window.location.search);
+  const error =
+    hashParams.get("error_description") ||
+    hashParams.get("error") ||
+    searchParams.get("error_description") ||
+    searchParams.get("error");
+
+  if (error) {
+    console.error("Falha no login com Google:", error);
+    window.history.replaceState(
+      {},
+      document.title,
+      window.location.pathname,
+    );
+  }
+  return error;
+}
+
 async function checkAuth() {
   const authScreen = document.getElementById("authScreen");
   const deniedScreen = document.getElementById("accessDeniedScreen");
+  const oauthError = consumeOAuthErrorFromUrl();
   const { data: { session } } = await supabaseClient.auth.getSession();
 
   if (!session) {
+    showAuthError(
+      oauthError
+        ? "Não foi possível concluir o login com o Google. Tente novamente."
+        : null,
+    );
     showScreen(authScreen);
     return;
   }
+
+  showAuthError(null);
 
   try {
     const meRes = await fetch("/api/me");

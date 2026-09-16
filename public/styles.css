@@ -3943,6 +3943,16 @@ body {
   margin: 4px 0 0;
 }
 
+.gate-error {
+  font-size: 12.5px;
+  color: var(--danger, #ef4444);
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin: 10px 0 0;
+}
+
 /* ==========================================================================
    ACCOUNT MENU
    ========================================================================== */

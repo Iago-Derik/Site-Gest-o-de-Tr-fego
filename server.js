@@ -2172,9 +2172,33 @@ const server = http.createServer(async (req, res) => {
     };
     const contentType = mimeTypes[ext] || "application/octet-stream";
 
+    if (ext === ".html") {
+      // Rewrite ?v= cache-busting query strings on same-origin assets using
+      // each asset's own mtime, so a stale cached app.js/styles.css can never
+      // linger after a deploy just because someone forgot to bump the string.
+      let html = fs.readFileSync(filePath, "utf8");
+      html = html.replace(
+        /(src|href)="(\/[a-zA-Z0-9_\-./]+\.(?:js|css))(?:\?v=[^"]*)?"/g,
+        (match, attr, assetPath) => {
+          const assetFsPath = path.join(PUBLIC_DIR, assetPath);
+          if (!fs.existsSync(assetFsPath)) return match;
+          const version = Math.round(
+            fs.statSync(assetFsPath).mtimeMs,
+          ).toString(36);
+          return `${attr}="${assetPath}?v=${version}"`;
+        },
+      );
+      res.writeHead(200, {
+        "Content-Type": contentType,
+        "Cache-Control": "no-cache",
+      });
+      res.end(html);
+      return;
+    }
+
     res.writeHead(200, {
       "Content-Type": contentType,
-      "Cache-Control": ext === ".html" ? "no-cache" : "public, max-age=3600",
+      "Cache-Control": "public, max-age=3600",
     });
     fs.createReadStream(filePath).pipe(res);
     return;
