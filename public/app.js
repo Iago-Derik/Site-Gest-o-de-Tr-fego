@@ -287,6 +287,7 @@ const el = {
   courseDropdownMenu: document.getElementById("courseDropdownMenu"),
   globalSearchInput: document.getElementById("globalSearchInput"),
   btnClearSearch: document.getElementById("btnClearSearch"),
+  btnMobileSearch: document.getElementById("btnMobileSearch"),
   commandPaletteBackdrop: document.getElementById("commandPaletteBackdrop"),
   commandPaletteInput: document.getElementById("commandPaletteInput"),
   commandPaletteResults: document.getElementById("commandPaletteResults"),
@@ -4289,6 +4290,7 @@ function initEventListeners() {
   });
 
   // Command Palette
+  el.btnMobileSearch?.addEventListener("click", () => openCommandPalette());
   el.commandPaletteBackdrop.addEventListener("click", (e) => {
     if (e.target === el.commandPaletteBackdrop) closeCommandPalette();
   });
