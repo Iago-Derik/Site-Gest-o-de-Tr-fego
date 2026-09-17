@@ -856,11 +856,18 @@
     <section class="view-section" id="viewFavorites">
       <div class="shelf-header">
         <div class="shelf-title-box">
-          <h1 class="shelf-title">Aulas Favoritas</h1>
+          <h1 class="shelf-title">Favoritos</h1>
           <span class="shelf-subtitle">Aulas que você marcou com estrela para consulta rápida</span>
         </div>
       </div>
+      <nav class="work-tabs" id="favoritesTabs" aria-label="Organizar favoritos">
+        <button class="work-tab active" data-fav-section="lessons">Aulas</button>
+        <button class="work-tab" data-fav-section="courses">Cursos</button>
+        <button class="work-tab" data-fav-section="notes">Notas</button>
+      </nav>
       <div class="videos-grid" id="favoritesVideosGrid"></div>
+      <div id="favoritesByCourseContainer" hidden></div>
+      <div class="history-list" id="favoritesNotesList" hidden></div>
     </section>
 
     <!-- ================================================================= -->

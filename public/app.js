@@ -247,6 +247,7 @@ const state = {
   coursesData: null,
   currentCourse: null,
   currentUserEmail: null,
+  favoritesSection: "lessons",
   currentVideo: null,
   loadedVideoId: null, // Tracks currently loaded video ID to prevent src reloading
   progress: { lastVideoId: null, videos: {} },
@@ -433,6 +434,9 @@ const el = {
   globalNotesContainer: document.getElementById("globalNotesContainer"),
   btnExportAllNotes: document.getElementById("btnExportAllNotes"),
   favoritesVideosGrid: document.getElementById("favoritesVideosGrid"),
+  favoritesTabs: document.getElementById("favoritesTabs"),
+  favoritesByCourseContainer: document.getElementById("favoritesByCourseContainer"),
+  favoritesNotesList: document.getElementById("favoritesNotesList"),
 
   // Professional workspace
   workClientList: document.getElementById("workClientList"),
@@ -2574,7 +2578,9 @@ function renderHomeRecentRail() {
 
 function renderHomeFavoritesRail() {
   if (!el.homeFavoritesRail) return;
-  const allVideos = getAllCurrentCourseVideos();
+  const allVideos = (state.coursesData?.courses || []).flatMap((c) =>
+    (c.modules || []).flatMap((m) => m.videos || []),
+  );
   const favVideos = allVideos.filter((v) => state.favorites.includes(v.id));
   if (el.shelfHomeFavorites) el.shelfHomeFavorites.hidden = !favVideos.length;
   if (!favVideos.length) return;
@@ -3136,24 +3142,117 @@ function renderAllNotesView() {
 }
 
 // 11. Favorites View
+function favoritesEmptyStateHTML(message) {
+  return `
+    <div class="empty-state-panel" style="grid-column: 1 / -1;">
+      <div class="empty-state-icon">
+        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
+        </svg>
+      </div>
+      <h2>Nenhum favorito ainda</h2>
+      <p>${message}</p>
+    </div>
+  `;
+}
+
 function renderFavoritesView() {
-  const allVideos = getAllCurrentCourseVideos();
+  const courses = state.coursesData?.courses || [];
+  const allVideos = courses.flatMap((c) =>
+    (c.modules || []).flatMap((m) => m.videos || []),
+  );
   const favVideos = allVideos.filter((v) => state.favorites.includes(v.id));
 
-  el.favoritesVideosGrid.innerHTML = "";
-  if (!favVideos.length) {
-    el.favoritesVideosGrid.innerHTML = `
-      <div style="grid-column: 1 / -1; padding: 40px; text-align: center; color: var(--text-muted); background: var(--bg-card); border-radius: var(--radius-lg);">
-        <p style="font-size: 16px; font-weight: 600; margin-bottom: 8px;">Nenhuma aula favoritada ainda</p>
-        <p style="font-size: 13px;">Clique no ícone de estrela nas aulas para salvá-las aqui e encontrá-las rapidamente.</p>
-      </div>
-    `;
+  el.favoritesTabs
+    ?.querySelectorAll(".work-tab")
+    .forEach((tab) =>
+      tab.classList.toggle(
+        "active",
+        tab.dataset.favSection === state.favoritesSection,
+      ),
+    );
+
+  el.favoritesVideosGrid.hidden = state.favoritesSection !== "lessons";
+  el.favoritesByCourseContainer.hidden = state.favoritesSection !== "courses";
+  el.favoritesNotesList.hidden = state.favoritesSection !== "notes";
+
+  if (state.favoritesSection === "courses") {
+    if (!favVideos.length) {
+      el.favoritesByCourseContainer.innerHTML = favoritesEmptyStateHTML(
+        "Salve aulas que você quer revisar depois — elas aparecem aqui agrupadas por curso.",
+      );
+      return;
+    }
+    el.favoritesByCourseContainer.innerHTML = "";
+    courses.forEach((course) => {
+      const courseVideos = (course.modules || [])
+        .flatMap((m) => m.videos || [])
+        .filter((v) => state.favorites.includes(v.id));
+      if (!courseVideos.length) return;
+      const section = document.createElement("div");
+      section.className = "section-shelf";
+      section.innerHTML = `
+        <div class="shelf-header">
+          <div class="shelf-title-box">
+            <h2 class="shelf-title">${escapeHTML(course.cleanTitle || course.title)}</h2>
+            <span class="shelf-count-badge">${courseVideos.length}</span>
+          </div>
+        </div>
+        <div class="videos-grid"></div>
+      `;
+      const grid = section.querySelector(".videos-grid");
+      courseVideos.forEach((v) => grid.appendChild(createVideoCardElement(v)));
+      el.favoritesByCourseContainer.appendChild(section);
+    });
     return;
   }
 
+  if (state.favoritesSection === "notes") {
+    const favNotes = state.notes.filter((n) =>
+      state.favorites.includes(n.videoId),
+    );
+    if (!favNotes.length) {
+      el.favoritesNotesList.innerHTML = favoritesEmptyStateHTML(
+        "Anotações feitas em aulas favoritadas aparecem aqui.",
+      );
+      return;
+    }
+    el.favoritesNotesList.innerHTML = favNotes
+      .map((note) => {
+        const video = findVideoById(note.videoId);
+        return `
+        <button class="history-row" data-note-id="${escapeHTML(note.id)}">
+          <div class="history-row-body">
+            <span class="history-row-breadcrumb">${escapeHTML(video?.cleanTitle || "Aula")}</span>
+            <h3 class="history-row-title">${escapeHTML(note.text.slice(0, 100))}</h3>
+          </div>
+          <div class="history-row-meta">
+            <span class="history-row-time">${note.timestampFormatted || formatTime(note.timestamp)}</span>
+          </div>
+        </button>
+      `;
+      })
+      .join("");
+    el.favoritesNotesList.querySelectorAll("[data-note-id]").forEach((row) => {
+      row.addEventListener("click", () => {
+        const note = favNotes.find((n) => n.id === row.dataset.noteId);
+        const video = note && findVideoById(note.videoId);
+        if (video) playVideoFromAnyCourse(video, note.timestamp);
+      });
+    });
+    return;
+  }
+
+  // state.favoritesSection === "lessons"
+  el.favoritesVideosGrid.innerHTML = "";
+  if (!favVideos.length) {
+    el.favoritesVideosGrid.innerHTML = favoritesEmptyStateHTML(
+      "Clique no ícone de estrela nas aulas para salvá-las aqui e encontrá-las rapidamente.",
+    );
+    return;
+  }
   favVideos.forEach((v) => {
-    const card = createVideoCardElement(v);
-    el.favoritesVideosGrid.appendChild(card);
+    el.favoritesVideosGrid.appendChild(createVideoCardElement(v));
   });
 }
 
@@ -3650,6 +3749,13 @@ function initEventListeners() {
     state.workSection = tab.dataset.workSection;
     renderWorkView();
     if (state.workSection === "reports") refreshMetaConnectionStatus();
+  });
+
+  el.favoritesTabs?.addEventListener("click", (event) => {
+    const tab = event.target.closest(".work-tab");
+    if (!tab) return;
+    state.favoritesSection = tab.dataset.favSection;
+    renderFavoritesView();
   });
   el.documentClientFilter.addEventListener("change", renderWorkDocuments);
   el.documentSearch.addEventListener("input", renderWorkDocuments);
