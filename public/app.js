@@ -286,6 +286,9 @@ const el = {
   courseDropdownMenu: document.getElementById("courseDropdownMenu"),
   globalSearchInput: document.getElementById("globalSearchInput"),
   btnClearSearch: document.getElementById("btnClearSearch"),
+  commandPaletteBackdrop: document.getElementById("commandPaletteBackdrop"),
+  commandPaletteInput: document.getElementById("commandPaletteInput"),
+  commandPaletteResults: document.getElementById("commandPaletteResults"),
   headerCourseProgress: document.getElementById("headerCourseProgress"),
   headerProgressPercent: document.getElementById("headerProgressPercent"),
   headerProgressBar: document.getElementById("headerProgressBar"),
@@ -2668,7 +2671,7 @@ function createVideoCardElement(video) {
   });
 
   card.addEventListener("click", () => {
-    playVideo(video);
+    playVideoFromAnyCourse(video);
   });
 
   return card;
@@ -3417,6 +3420,202 @@ function switchView(viewId) {
 }
 
 // --------------------------------------------------------------------------
+// COMMAND PALETTE (Ctrl/Cmd + K) — busca global com resultados agrupados
+// --------------------------------------------------------------------------
+
+function findVideoById(videoId) {
+  const courses = state.coursesData?.courses || [];
+  for (const course of courses) {
+    for (const mod of course.modules || []) {
+      const found = (mod.videos || []).find((v) => v.id === videoId);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+
+function findCourseByVideoId(videoId) {
+  const courses = state.coursesData?.courses || [];
+  return courses.find((course) =>
+    (course.modules || []).some((m) =>
+      (m.videos || []).some((v) => v.id === videoId),
+    ),
+  );
+}
+
+// Garante que o curso selecionado no topo/sidebar acompanhe a aula que vai
+// tocar, mesmo quando ela vem de outro curso (ex.: resultado da busca).
+function playVideoFromAnyCourse(video, startTime = null) {
+  const course = findCourseByVideoId(video.id);
+  if (course && course.id !== state.currentCourse?.id) {
+    state.currentCourse = course;
+    renderCourseDropdown();
+    updateHeaderProgress();
+  }
+  playVideo(video, startTime);
+}
+
+function getCommandPaletteResults(query) {
+  const q = query.trim().toLowerCase();
+  const courses = state.coursesData?.courses || [];
+  const allVideos = courses.flatMap((c) =>
+    (c.modules || []).flatMap((m) => m.videos || []),
+  );
+
+  if (!q) {
+    const recent = courses
+      .flatMap((c) => watchedEntriesForCourse(c))
+      .sort((a, b) => new Date(b.p.lastWatchedAt) - new Date(a.p.lastWatchedAt))
+      .slice(0, 5)
+      .map((e) => e.video);
+    const favorites = allVideos
+      .filter((v) => state.favorites.includes(v.id))
+      .slice(0, 5);
+    return { courses: [], videos: recent, notes: [], favorites, isDefault: true };
+  }
+
+  const courseMatches = courses
+    .filter((c) => (c.cleanTitle || c.title || "").toLowerCase().includes(q))
+    .slice(0, 5);
+  const videoMatches = allVideos
+    .filter(
+      (v) =>
+        v.cleanTitle.toLowerCase().includes(q) ||
+        v.cleanModule.toLowerCase().includes(q),
+    )
+    .slice(0, 6);
+  const noteMatches = state.notes
+    .filter((n) => n.text.toLowerCase().includes(q))
+    .slice(0, 5);
+  const favMatches = allVideos
+    .filter(
+      (v) => state.favorites.includes(v.id) && v.cleanTitle.toLowerCase().includes(q),
+    )
+    .slice(0, 5);
+
+  return {
+    courses: courseMatches,
+    videos: videoMatches,
+    notes: noteMatches,
+    favorites: favMatches,
+    isDefault: false,
+  };
+}
+
+function openCommandPalette() {
+  el.commandPaletteBackdrop.classList.add("open");
+  el.commandPaletteInput.value = "";
+  renderCommandPaletteResults("");
+  setTimeout(() => el.commandPaletteInput.focus(), 30);
+}
+
+function closeCommandPalette() {
+  el.commandPaletteBackdrop.classList.remove("open");
+}
+
+function commandPaletteIcon(type) {
+  const icons = {
+    course: '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>',
+    video: '<svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>',
+    note: '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>',
+    favorite: '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg>',
+  };
+  return icons[type] || icons.video;
+}
+
+function renderCommandPaletteResults(query) {
+  const { courses, videos, notes, favorites, isDefault } =
+    getCommandPaletteResults(query);
+  const groups = [
+    { label: isDefault ? "Recentes" : "Aulas", type: "video", items: videos },
+    { label: "Cursos", type: "course", items: courses },
+    { label: "Anotações", type: "note", items: notes },
+    { label: "Favoritos", type: "favorite", items: favorites },
+  ].filter((g) => g.items.length);
+
+  if (!groups.length) {
+    el.commandPaletteResults.innerHTML = `<div class="command-palette-empty">Nenhum resultado encontrado.</div>`;
+    return;
+  }
+
+  el.commandPaletteResults.innerHTML = groups
+    .map(
+      (group) => `
+      <div class="cp-group-label">${group.label}</div>
+      ${group.items
+        .map((item, idx) => {
+          if (group.type === "course") {
+            return `<button class="cp-result-item" data-type="course" data-idx="${idx}">
+              <span class="cp-result-icon">${commandPaletteIcon("course")}</span>
+              <span class="cp-result-body"><span class="cp-result-title">${escapeHTML(item.cleanTitle || item.title)}</span><span class="cp-result-meta">${item.totalVideos} aulas</span></span>
+            </button>`;
+          }
+          if (group.type === "note") {
+            const video = findVideoById(item.videoId);
+            return `<button class="cp-result-item" data-type="note" data-idx="${idx}">
+              <span class="cp-result-icon">${commandPaletteIcon("note")}</span>
+              <span class="cp-result-body"><span class="cp-result-title">${escapeHTML(item.text.slice(0, 70))}</span><span class="cp-result-meta">${escapeHTML(video?.cleanTitle || "Aula")}</span></span>
+              <span class="cp-result-timestamp">${item.timestampFormatted || formatTime(item.timestamp)}</span>
+            </button>`;
+          }
+          return `<button class="cp-result-item" data-type="${group.type}" data-idx="${idx}">
+            <span class="cp-result-icon">${commandPaletteIcon(group.type)}</span>
+            <span class="cp-result-body"><span class="cp-result-title">${escapeHTML(item.cleanTitle)}</span><span class="cp-result-meta">${escapeHTML(item.cleanCourse)} · ${escapeHTML(item.cleanModule)}</span></span>
+          </button>`;
+        })
+        .join("")}
+    `,
+    )
+    .join("");
+
+  const activate = (type, idx) => {
+    if (type === "course") {
+      const course = courses[idx];
+      closeCommandPalette();
+      if (course) selectCourse(course);
+    } else if (type === "note") {
+      const note = notes[idx];
+      const video = note && findVideoById(note.videoId);
+      closeCommandPalette();
+      if (video) playVideoFromAnyCourse(video, note.timestamp);
+    } else {
+      const video = (type === "favorite" ? favorites : videos)[idx];
+      closeCommandPalette();
+      if (video) playVideoFromAnyCourse(video);
+    }
+  };
+
+  el.commandPaletteResults.querySelectorAll(".cp-result-item").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      activate(btn.dataset.type, Number(btn.dataset.idx));
+    });
+  });
+
+  el.commandPaletteResults.querySelector(".cp-result-item")?.classList.add("selected");
+  el.commandPaletteResults._activate = activate;
+}
+
+function moveCommandPaletteSelection(delta) {
+  const items = Array.from(
+    el.commandPaletteResults.querySelectorAll(".cp-result-item"),
+  );
+  if (!items.length) return;
+  const currentIdx = items.findIndex((i) => i.classList.contains("selected"));
+  const nextIdx =
+    currentIdx === -1 ? 0 : (currentIdx + delta + items.length) % items.length;
+  items.forEach((i) => i.classList.remove("selected"));
+  items[nextIdx].classList.add("selected");
+  items[nextIdx].scrollIntoView({ block: "nearest" });
+}
+
+function activateCommandPaletteSelection() {
+  const selected = el.commandPaletteResults.querySelector(".cp-result-item.selected");
+  if (selected && el.commandPaletteResults._activate) {
+    el.commandPaletteResults._activate(selected.dataset.type, Number(selected.dataset.idx));
+  }
+}
+
+// --------------------------------------------------------------------------
 // EVENT LISTENERS BINDINGS
 // --------------------------------------------------------------------------
 
@@ -3934,6 +4133,32 @@ function initEventListeners() {
     el.modalSettingsBackdrop.classList.remove("open");
   });
 
+  // Command Palette
+  el.commandPaletteBackdrop.addEventListener("click", (e) => {
+    if (e.target === el.commandPaletteBackdrop) closeCommandPalette();
+  });
+  let paletteDebounce = null;
+  el.commandPaletteInput.addEventListener("input", (e) => {
+    clearTimeout(paletteDebounce);
+    const value = e.target.value;
+    paletteDebounce = setTimeout(() => renderCommandPaletteResults(value), 120);
+  });
+  el.commandPaletteInput.addEventListener("keydown", (e) => {
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      moveCommandPaletteSelection(1);
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      moveCommandPaletteSelection(-1);
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      activateCommandPaletteSelection();
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      closeCommandPalette();
+    }
+  });
+
   el.btnCfgSwitchAccount?.addEventListener("click", handleSwitchAccount);
   el.btnCfgSignOut?.addEventListener("click", handleSignOut);
 
@@ -4010,14 +4235,14 @@ function initEventListeners() {
 
   // Global Keyboard Shortcuts
   window.addEventListener("keydown", (e) => {
-    if (["INPUT", "TEXTAREA"].includes(document.activeElement.tagName)) {
-      if (e.key === "Escape") document.activeElement.blur();
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+      e.preventDefault();
+      openCommandPalette();
       return;
     }
 
-    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
-      e.preventDefault();
-      el.globalSearchInput.focus();
+    if (["INPUT", "TEXTAREA"].includes(document.activeElement.tagName)) {
+      if (e.key === "Escape") document.activeElement.blur();
       return;
     }
 
