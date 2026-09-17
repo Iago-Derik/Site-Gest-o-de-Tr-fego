@@ -1289,6 +1289,22 @@ function getSelectedMetrics(storageKey, fallback) {
 const CHART_PALETTE = ["#6366f1", "#06b6d4", "#10b981", "#f59e0b", "#f43f5e", "#a855f7"];
 const chartInstances = {};
 
+// Nível "ad"/"adset" também trazem campaign_name junto (contexto), então
+// nunca dá pra simplesmente checar "existe campaign_name?" — tem que
+// respeitar o nível escolhido e só cair pro nível acima se o mais
+// específico vier vazio.
+function getMetaNameFieldOrder(level) {
+  if (level === "ad") return ["ad_name", "adset_name", "campaign_name"];
+  if (level === "adset") return ["adset_name", "campaign_name"];
+  if (level === "campaign") return ["campaign_name"];
+  return [];
+}
+
+function truncateChartLabel(str, maxLen = 22) {
+  const s = String(str ?? "—");
+  return s.length > maxLen ? `${s.slice(0, maxLen - 1)}…` : s;
+}
+
 function renderMetricsChart(canvasId, rows, xKey, metricKeys, chartType, labelMap) {
   const canvas = document.getElementById(canvasId);
   if (!canvas || typeof Chart === "undefined") return;
@@ -1297,7 +1313,8 @@ function renderMetricsChart(canvasId, rows, xKey, metricKeys, chartType, labelMa
     delete chartInstances[canvasId];
   }
   if (!rows.length || !metricKeys.length) return;
-  const labels = rows.map((r) => String(r[xKey] ?? "—"));
+  const fullLabels = rows.map((r) => String(r[xKey] ?? "—"));
+  const labels = fullLabels.map((l) => truncateChartLabel(l));
   const isCircular = chartType === "pie" || chartType === "doughnut";
   const datasets = isCircular
     ? [
@@ -1322,7 +1339,10 @@ function renderMetricsChart(canvasId, rows, xKey, metricKeys, chartType, labelMa
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      plugins: { legend: { labels: { color: "#cbd5e1" } } },
+      plugins: {
+        legend: { labels: { color: "#cbd5e1" } },
+        tooltip: { callbacks: { title: (items) => fullLabels[items[0]?.dataIndex] ?? "" } },
+      },
       scales: isCircular
         ? {}
         : {
@@ -1338,7 +1358,9 @@ function renderInsightCharts() {
     const rows = state.metaInsights.data || [];
     const metrics = getSelectedMetrics("meta", ["impressions", "clicks", "spend"]);
     const labelMap = Object.fromEntries(META_METRIC_OPTIONS.map((o) => [o.key, o.label]));
-    const xKey = rows[0]?.campaign_name !== undefined ? "campaign_name" : "date_start";
+    const nameFieldOrder = getMetaNameFieldOrder(state.metaInsights.level);
+    const xKey =
+      nameFieldOrder.find((key) => rows[0]?.[key] !== undefined) || "date_start";
     renderMetricsChart(
       "metaChartCanvas",
       rows,
@@ -1577,10 +1599,11 @@ function renderMetaDashboard(payload) {
         ? "Conjunto de Anúncios"
         : "Campanha";
 
+  const nameFieldOrder = getMetaNameFieldOrder(payload.level);
   const campaignRows = rows
     .map((row) => {
       const name =
-        row.campaign_name || row.adset_name || row.ad_name || "Sem nome";
+        nameFieldOrder.map((key) => row[key]).find(Boolean) || "Sem nome";
       const spend = Number(row.spend || 0);
       const imp = Number(row.impressions || 0);
       const clk = Number(row.clicks || 0);

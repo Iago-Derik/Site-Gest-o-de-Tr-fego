@@ -318,6 +318,7 @@ body {
 .sidebar-nav {
   flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
   padding: 4px 12px 12px;
   display: flex;
   flex-direction: column;
@@ -3025,6 +3026,10 @@ body {
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
 }
+.work-document-filters select option {
+  background: var(--bg-surface);
+  color: var(--text-primary);
+}
 .work-document-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
@@ -3290,6 +3295,10 @@ body {
   font: inherit;
   font-size: 12px;
 }
+.meta-import-controls select option {
+  background: var(--bg-surface);
+  color: var(--text-primary);
+}
 .meta-import-controls input:focus,
 .meta-import-controls select:focus {
   border-color: #1877f2;
@@ -3387,17 +3396,23 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 12px;
   font-size: 13px;
 }
 
 .dash-row-header strong {
   color: var(--text-primary);
   font-weight: 700;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .dash-row-header span {
   color: var(--accent-primary);
   font-weight: 700;
+  flex-shrink: 0;
 }
 
 .dash-row-bar-track {
@@ -3792,6 +3807,7 @@ body {
 }
 .work-form select option {
   background: var(--bg-surface);
+  color: var(--text-primary);
 }
 .work-form-actions {
   justify-content: flex-end;
