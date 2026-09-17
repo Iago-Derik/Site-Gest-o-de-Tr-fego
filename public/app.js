@@ -290,9 +290,9 @@ const el = {
   headerProgressCount: document.getElementById("headerProgressCount"),
   navBtnHome: document.getElementById("navBtnHome"),
   navBtnCourses: document.getElementById("navBtnCourses"),
-  navBtnPlayer: document.getElementById("navBtnPlayer"),
   navBtnNotes: document.getElementById("navBtnNotes"),
   navBtnFavorites: document.getElementById("navBtnFavorites"),
+  navBtnHistory: document.getElementById("navBtnHistory"),
   navBtnWork: document.getElementById("navBtnWork"),
   btnRescan: document.getElementById("btnRescan"),
   btnSettings: document.getElementById("btnSettings"),
@@ -304,6 +304,8 @@ const el = {
   viewPlayer: document.getElementById("viewPlayer"),
   viewNotes: document.getElementById("viewNotes"),
   viewFavorites: document.getElementById("viewFavorites"),
+  viewHistory: document.getElementById("viewHistory"),
+  historyList: document.getElementById("historyList"),
   viewWork: document.getElementById("viewWork"),
 
   // Home View
@@ -3083,6 +3085,81 @@ function renderFavoritesView() {
   });
 }
 
+function formatRelativeTime(isoString) {
+  const then = new Date(isoString).getTime();
+  if (Number.isNaN(then)) return "";
+  const diffMs = Date.now() - then;
+  const diffMin = Math.round(diffMs / 60000);
+  if (diffMin < 1) return "agora mesmo";
+  if (diffMin < 60) return `há ${diffMin} min`;
+  const diffHours = Math.round(diffMin / 60);
+  if (diffHours < 24) return `há ${diffHours}h`;
+  const diffDays = Math.round(diffHours / 24);
+  if (diffDays === 1) return "ontem";
+  if (diffDays < 7) return `há ${diffDays} dias`;
+  const diffWeeks = Math.round(diffDays / 7);
+  if (diffWeeks < 5) return `há ${diffWeeks} semana${diffWeeks > 1 ? "s" : ""}`;
+  return new Date(isoString).toLocaleDateString("pt-BR");
+}
+
+function renderHistoryView() {
+  if (!el.historyList) return;
+  const allVideos = getAllCurrentCourseVideos();
+  const watched = allVideos
+    .map((v) => ({ video: v, p: state.progress.videos?.[v.id] }))
+    .filter((entry) => entry.p && entry.p.lastWatchedAt)
+    .sort(
+      (a, b) => new Date(b.p.lastWatchedAt) - new Date(a.p.lastWatchedAt),
+    );
+
+  if (!watched.length) {
+    el.historyList.innerHTML = `
+      <div class="empty-state-panel">
+        <div class="empty-state-icon">
+          <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="9"></circle>
+            <polyline points="12 7 12 12 15.5 14"></polyline>
+          </svg>
+        </div>
+        <h2>Seu histórico ainda está vazio</h2>
+        <p>As aulas que você assistir vão aparecer aqui, da mais recente para a mais antiga.</p>
+      </div>
+    `;
+    return;
+  }
+
+  el.historyList.innerHTML = watched
+    .map(({ video, p }) => {
+      const isCompleted = !!p.completed;
+      return `
+      <button class="history-row" data-history-id="${escapeHTML(video.id)}">
+        <div class="history-row-thumb">
+          <img src="${video.thumbUrl}" alt="${escapeHTML(video.cleanTitle)}" loading="lazy" />
+        </div>
+        <div class="history-row-body">
+          <span class="history-row-breadcrumb">${escapeHTML(video.cleanCourse)} · ${escapeHTML(video.cleanModule)}</span>
+          <h3 class="history-row-title">${escapeHTML(video.cleanTitle)}</h3>
+          <div class="history-row-progress-track">
+            <div class="history-row-progress-fill" style="width: ${isCompleted ? 100 : p.percentage || 0}%"></div>
+          </div>
+        </div>
+        <div class="history-row-meta">
+          <span class="history-row-status">${isCompleted ? "✓ Concluída" : `${p.percentage || 0}%`}</span>
+          <span class="history-row-time">${formatRelativeTime(p.lastWatchedAt)}</span>
+        </div>
+      </button>
+    `;
+    })
+    .join("");
+
+  el.historyList.querySelectorAll("[data-history-id]").forEach((row) => {
+    row.addEventListener("click", () => {
+      const entry = watched.find((w) => w.video.id === row.dataset.historyId);
+      if (entry) playVideo(entry.video);
+    });
+  });
+}
+
 function getAllCurrentCourseVideos() {
   if (!state.currentCourse || !state.currentCourse.modules) return [];
   const list = [];
@@ -3228,9 +3305,9 @@ function playPrevLesson() {
 function switchView(viewId) {
   el.navBtnHome.classList.toggle("active", viewId === "viewHome");
   el.navBtnCourses.classList.toggle("active", viewId === "viewCourses");
-  el.navBtnPlayer.classList.toggle("active", viewId === "viewPlayer");
   el.navBtnNotes.classList.toggle("active", viewId === "viewNotes");
   el.navBtnFavorites.classList.toggle("active", viewId === "viewFavorites");
+  el.navBtnHistory.classList.toggle("active", viewId === "viewHistory");
   el.navBtnWork.classList.toggle("active", viewId === "viewWork");
 
   [
@@ -3239,6 +3316,7 @@ function switchView(viewId) {
     el.viewPlayer,
     el.viewNotes,
     el.viewFavorites,
+    el.viewHistory,
     el.viewWork,
   ].forEach((v) => {
     v.classList.toggle("active", v.id === viewId);
@@ -3250,6 +3328,8 @@ function switchView(viewId) {
     renderAllNotesView();
   } else if (viewId === "viewFavorites") {
     renderFavoritesView();
+  } else if (viewId === "viewHistory") {
+    renderHistoryView();
   } else if (viewId === "viewHome") {
     renderHomeHero();
     renderHomeVideosGrid();
@@ -3271,11 +3351,11 @@ function initEventListeners() {
   el.btnLogoHome.addEventListener("click", () => switchView("viewHome"));
   el.navBtnHome.addEventListener("click", () => switchView("viewHome"));
   el.navBtnCourses.addEventListener("click", () => switchView("viewCourses"));
-  el.navBtnPlayer.addEventListener("click", () => switchView("viewPlayer"));
   el.navBtnNotes.addEventListener("click", () => switchView("viewNotes"));
   el.navBtnFavorites.addEventListener("click", () =>
     switchView("viewFavorites"),
   );
+  el.navBtnHistory.addEventListener("click", () => switchView("viewHistory"));
   el.navBtnWork.addEventListener("click", () => switchView("viewWork"));
   el.btnBackToHome.addEventListener("click", () => switchView("viewHome"));
   el.btnNewClient.addEventListener("click", () => openClientEditor());

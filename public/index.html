@@ -101,27 +101,14 @@
           </svg>
           <span>Home</span>
         </button>
-        <button class="sidebar-nav-item" id="navBtnCourses" title="Todos os Cursos e Módulos">
+        <button class="sidebar-nav-item" id="navBtnCourses" title="Meus Cursos">
           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
             <rect x="3" y="3" width="7" height="7"></rect>
             <rect x="14" y="3" width="7" height="7"></rect>
             <rect x="14" y="14" width="7" height="7"></rect>
             <rect x="3" y="14" width="7" height="7"></rect>
           </svg>
-          <span>Cursos</span>
-        </button>
-        <button class="sidebar-nav-item" id="navBtnPlayer" title="Player de Aula">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
-            <rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"></rect>
-            <line x1="7" y1="2" x2="7" y2="22"></line>
-            <line x1="17" y1="2" x2="17" y2="22"></line>
-            <line x1="2" y1="12" x2="22" y2="12"></line>
-            <line x1="2" y1="7" x2="7" y2="7"></line>
-            <line x1="2" y1="17" x2="7" y2="17"></line>
-            <line x1="17" y1="17" x2="22" y2="17"></line>
-            <line x1="17" y1="7" x2="22" y2="7"></line>
-          </svg>
-          <span>Player</span>
+          <span>Meus Cursos</span>
         </button>
         <button class="sidebar-nav-item" id="navBtnNotes" title="Minhas Anotações">
           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
@@ -139,6 +126,15 @@
           <span>Favoritos</span>
         </button>
 
+        <span class="sidebar-nav-label">Histórico</span>
+        <button class="sidebar-nav-item" id="navBtnHistory" title="Histórico de aulas assistidas">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="9"></circle>
+            <polyline points="12 7 12 12 15.5 14"></polyline>
+          </svg>
+          <span>Histórico</span>
+        </button>
+
         <span class="sidebar-nav-label">Gestão</span>
         <button class="sidebar-nav-item" id="navBtnWork" title="Área profissional">
           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
@@ -146,6 +142,15 @@
             <path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 12h18M10 12v2h4v-2"></path>
           </svg>
           <span>Trabalho</span>
+        </button>
+
+        <span class="sidebar-nav-label">Preferências</span>
+        <button class="sidebar-nav-item" id="btnSettings" title="Configurações">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+          </svg>
+          <span>Configurações</span>
         </button>
       </nav>
 
@@ -156,12 +161,6 @@
               <polyline points="23 4 23 10 17 10"></polyline>
               <polyline points="1 20 1 14 7 14"></polyline>
               <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
-            </svg>
-          </button>
-          <button class="action-circle-btn" id="btnSettings" title="Configurações e Diretório">
-            <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="12" cy="12" r="3"></circle>
-              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
             </svg>
           </button>
           <button class="action-circle-btn" id="btnShortcuts" title="Atalhos de Teclado">
@@ -805,6 +804,19 @@
         </div>
       </div>
       <div class="videos-grid" id="favoritesVideosGrid"></div>
+    </section>
+
+    <!-- ================================================================= -->
+    <!-- 5b. HISTORY VIEW -->
+    <!-- ================================================================= -->
+    <section class="view-section" id="viewHistory">
+      <div class="shelf-header">
+        <div class="shelf-title-box">
+          <h1 class="shelf-title">Histórico</h1>
+          <span class="shelf-subtitle">Últimas aulas assistidas, da mais recente para a mais antiga</span>
+        </div>
+      </div>
+      <div class="history-list" id="historyList"></div>
     </section>
 
     <!-- ================================================================= -->
