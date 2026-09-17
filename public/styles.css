@@ -3,33 +3,36 @@
    ========================================================================== */
 
 :root {
-  /* Color Palette - Refined Violet (mais autoral que o indigo padrão) */
-  --accent-primary: #7c5cff;
-  --accent-primary-hover: #6a45f5;
-  --accent-primary-glow: rgba(124, 92, 255, 0.4);
+  /* Cor de destaque — indigo/violeta sofisticado. Aparece só em pontos
+     específicos (progresso, botões primários, estados ativos, foco) —
+     o resto da interface é neutro (zinc). */
+  --accent-primary: #7c3aed;
+  --accent-primary-hover: #8b5cf6;
+  --accent-primary-glow: rgba(124, 58, 237, 0.22);
+  --accent-primary-soft: rgba(124, 58, 237, 0.12);
   --accent-secondary: #22d3ee;
-  --accent-success: #34d399;
-  --accent-warning: #fbbf24;
-  --accent-danger: #fb7185;
+  --accent-success: #22c55e;
+  --accent-warning: #f59e0b;
+  --accent-danger: #ef4444;
 
-  /* Dark Theme Surfaces */
-  --bg-app: #07080c;
-  --bg-surface: #0d0f16;
-  --bg-card: rgba(20, 23, 34, 0.75);
-  --bg-card-hover: rgba(28, 32, 46, 0.92);
-  --bg-sidebar: #0a0b11;
-  --bg-input: rgba(255, 255, 255, 0.04);
+  /* Camadas de superfície (dark neutro, não preto absoluto) */
+  --bg-app: #09090b;
+  --bg-surface: #111113;
+  --bg-card: #18181b;
+  --bg-card-hover: #202023;
+  --bg-sidebar: #09090b;
+  --bg-input: rgba(255, 255, 255, 0.05);
 
-  /* Borders & Dividers */
-  --border-subtle: rgba(255, 255, 255, 0.07);
-  --border-focus: rgba(124, 92, 255, 0.6);
-  --border-glow: 0 0 15px rgba(124, 92, 255, 0.35);
+  /* Bordas — sutis, sem brilho */
+  --border-subtle: #27272a;
+  --border-focus: rgba(124, 58, 237, 0.55);
+  --border-glow: 0 0 12px rgba(124, 58, 237, 0.18);
 
-  /* Typography */
-  --text-primary: #f8fafc;
-  --text-secondary: #96a0b5;
-  --text-muted: #666f83;
-  --text-inverse: #0b0f19;
+  /* Tipografia */
+  --text-primary: #fafafa;
+  --text-secondary: #a1a1aa;
+  --text-muted: #71717a;
+  --text-inverse: #09090b;
 
   /* Sizing & Transitions */
   --header-height: 64px;
@@ -42,32 +45,60 @@
   --transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
   --transition-normal: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   --transition-smooth: 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* Escala de espaçamento — adotada nas seções redesenhadas a partir
+     daqui; o CSS legado continua com valores próprios até ser revisto. */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+
+  /* Sombras discretas — profundidade sem brilho */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.45);
+
+  /* Camadas de empilhamento */
+  --z-dropdown: 200;
+  --z-sticky: 300;
+  --z-overlay: 400;
+  --z-modal: 500;
+  --z-toast: 600;
 }
 
 /* Accent Variations */
 [data-accent="cyan"] {
   --accent-primary: #06b6d4;
   --accent-primary-hover: #0891b2;
-  --accent-primary-glow: rgba(6, 182, 212, 0.4);
-  --border-focus: rgba(6, 182, 212, 0.6);
+  --accent-primary-glow: rgba(6, 182, 212, 0.22);
+  --accent-primary-soft: rgba(6, 182, 212, 0.12);
+  --border-focus: rgba(6, 182, 212, 0.55);
 }
 [data-accent="emerald"] {
   --accent-primary: #10b981;
   --accent-primary-hover: #059669;
-  --accent-primary-glow: rgba(16, 185, 129, 0.4);
-  --border-focus: rgba(16, 185, 129, 0.6);
+  --accent-primary-glow: rgba(16, 185, 129, 0.22);
+  --accent-primary-soft: rgba(16, 185, 129, 0.12);
+  --border-focus: rgba(16, 185, 129, 0.55);
 }
 [data-accent="amber"] {
   --accent-primary: #f59e0b;
   --accent-primary-hover: #d97706;
-  --accent-primary-glow: rgba(245, 158, 11, 0.4);
-  --border-focus: rgba(245, 158, 11, 0.6);
+  --accent-primary-glow: rgba(245, 158, 11, 0.22);
+  --accent-primary-soft: rgba(245, 158, 11, 0.12);
+  --border-focus: rgba(245, 158, 11, 0.55);
 }
 [data-accent="rose"] {
   --accent-primary: #f43f5e;
   --accent-primary-hover: #e11d48;
-  --accent-primary-glow: rgba(244, 63, 94, 0.4);
-  --border-focus: rgba(244, 63, 94, 0.6);
+  --accent-primary-glow: rgba(244, 63, 94, 0.22);
+  --accent-primary-soft: rgba(244, 63, 94, 0.12);
+  --border-focus: rgba(244, 63, 94, 0.55);
 }
 
 /* Reset & Base */
@@ -460,9 +491,9 @@ body {
   border-radius: 20px;
   white-space: nowrap;
   flex-shrink: 0;
-  background: rgba(124, 92, 255, 0.2);
+  background: rgba(124, 58, 237, 0.2);
   color: var(--accent-primary);
-  border: 1px solid rgba(124, 92, 255, 0.4);
+  border: 1px solid rgba(124, 58, 237, 0.4);
   letter-spacing: 0.5px;
 }
 
@@ -785,7 +816,7 @@ body {
   background: rgba(255, 255, 255, 0.08);
 }
 .pill-btn.active {
-  background: rgba(124, 92, 255, 0.2);
+  background: rgba(124, 58, 237, 0.2);
   color: var(--accent-primary);
   border-color: var(--accent-primary);
   box-shadow: 0 0 10px var(--accent-primary-glow);
@@ -1067,8 +1098,8 @@ body {
   color: #10b981;
 }
 .icon-purple {
-  background: rgba(124, 92, 255, 0.15);
-  color: #7c5cff;
+  background: rgba(124, 58, 237, 0.15);
+  color: #7c3aed;
 }
 .icon-amber {
   background: rgba(245, 158, 11, 0.15);
@@ -1172,7 +1203,7 @@ body {
 .home-topic-btn:hover,
 .home-topic-btn.active {
   color: var(--text-primary);
-  background: rgba(124, 92, 255, 0.14);
+  background: rgba(124, 58, 237, 0.14);
   border-color: var(--border-focus);
 }
 
@@ -1475,9 +1506,9 @@ body {
   font-weight: 700;
   padding: 3px 8px;
   border-radius: 6px;
-  background: rgba(124, 92, 255, 0.15);
+  background: rgba(124, 58, 237, 0.15);
   color: var(--accent-primary);
-  border: 1px solid rgba(124, 92, 255, 0.3);
+  border: 1px solid rgba(124, 58, 237, 0.3);
 }
 
 .module-name-title {
@@ -1540,7 +1571,7 @@ body {
   transform: translateX(3px);
 }
 .lesson-list-item.active-playing {
-  background: rgba(124, 92, 255, 0.15);
+  background: rgba(124, 58, 237, 0.15);
   border-color: var(--accent-primary);
 }
 
@@ -2144,7 +2175,7 @@ body {
   font-size: 12px;
   font-weight: 700;
   padding: 6px 10px;
-  background: rgba(124, 92, 255, 0.2);
+  background: rgba(124, 58, 237, 0.2);
   color: var(--accent-primary);
   border: 1px solid var(--accent-primary);
   border-radius: var(--radius-sm);
@@ -2210,8 +2241,8 @@ body {
 }
 
 .note-timestamp-btn {
-  background: rgba(124, 92, 255, 0.15);
-  border: 1px solid rgba(124, 92, 255, 0.35);
+  background: rgba(124, 58, 237, 0.15);
+  border: 1px solid rgba(124, 58, 237, 0.35);
   color: var(--accent-primary);
   font-family: "JetBrains Mono", monospace;
   font-size: 12px;
@@ -2824,7 +2855,7 @@ body {
   background: linear-gradient(
     135deg,
     rgba(24, 119, 242, 0.1),
-    rgba(124, 92, 255, 0.05)
+    rgba(124, 58, 237, 0.05)
   );
   border: 1px solid rgba(24, 119, 242, 0.28);
   border-radius: var(--radius-lg);
@@ -3000,7 +3031,7 @@ body {
 
 .dash-row-bar-fill {
   height: 100%;
-  background: linear-gradient(90deg, #7c5cff, #a855f7);
+  background: linear-gradient(90deg, #7c3aed, #a855f7);
   border-radius: 4px;
   transition: width 0.4s ease;
 }
@@ -3184,7 +3215,7 @@ body {
 }
 .work-client-item:hover,
 .work-client-item.active {
-  background: rgba(124, 92, 255, 0.14);
+  background: rgba(124, 58, 237, 0.14);
   border-color: var(--border-focus);
 }
 .work-client-avatar {

@@ -1021,44 +1021,109 @@ async function getCoursesData() {
 }
 
 // Generate an SVG placeholder thumbnail if ffmpeg is not present
-function generateFallbackThumbSVG(title) {
+// Categorias reconhecidas para a thumbnail de fallback: cada uma tem uma cor
+// de destaque própria e um ícone que remete ao assunto, em vez de um
+// gradiente genérico igual para qualquer curso.
+const THUMB_CATEGORIES = [
+  {
+    id: "traffic",
+    match: /trafego|tráfego|marketing|anuncio|anúncio|campanha|funil|ads\b|meta ads|google ads|seo\b|conversao|conversão/i,
+    accent: "#f59e0b",
+    // Gráfico de barras ascendente (performance/mídia paga)
+    icon: '<path d="M6 20V13M13 20V8M20 20V4" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>',
+  },
+  {
+    id: "data",
+    match: /power ?bi|dados|analytics|dashboard|excel|planilha|bi\b|ga4|google analytics|relatorio|relatório/i,
+    accent: "#22c55e",
+    // Gráfico de pizza (analytics/BI)
+    icon: '<path d="M13 3.5A9 9 0 1 1 3.5 13" stroke="white" stroke-width="2.2" stroke-linecap="round"/><path d="M13 3.5V13H21.5" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>',
+  },
+  {
+    id: "code",
+    match: /java\b|python|javascript|programacao|programação|c[oó]digo|desenvolv|react|node|sql|banco de dados|api\b|typescript|backend|frontend/i,
+    accent: "#22d3ee",
+    // Colchetes de código
+    icon: '<path d="M9 5 4 12l5 7" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M15 5l5 7-5 7" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>',
+  },
+  {
+    id: "design",
+    match: /design|figma|photoshop|canva|\bui\b|\bux\b|identidade visual|criativo/i,
+    accent: "#f43f5e",
+    // Caneta/pincel de design
+    icon: '<path d="M12 19l7-7 3 3-7 7-3-3z" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>',
+  },
+];
+
+const THUMB_DEFAULT_CATEGORY = {
+  id: "general",
+  accent: "#7c3aed",
+  // Chapéu de formatura (aprendizado em geral)
+  icon: '<path d="M22 10 12 5 2 10l10 5 10-5Z" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M6 12v5c0 1 3 3 6 3s6-2 6-3v-5" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>',
+};
+
+function detectThumbCategory(text) {
+  const found = THUMB_CATEGORIES.find((cat) => cat.match.test(text));
+  return found || THUMB_DEFAULT_CATEGORY;
+}
+
+// Pequeno hash determinístico só para variar a posição das formas
+// geométricas de fundo sem depender de aleatoriedade real (mesma aula
+// sempre gera a mesma imagem).
+function seededFraction(text, salt) {
+  let hash = 0;
+  const input = `${text}:${salt}`;
+  for (let i = 0; i < input.length; i++) {
+    hash = (hash * 31 + input.charCodeAt(i)) >>> 0;
+  }
+  return (hash % 1000) / 1000;
+}
+
+function generateFallbackThumbSVG(title, categoryContext) {
   const safeTitle = (title || "Vídeo Aula")
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;");
+  const category = detectThumbCategory(categoryContext || title || "");
+  const accent = category.accent;
+  const seed = categoryContext || title || "video";
+  const shapeX1 = 420 + seededFraction(seed, "x1") * 160;
+  const shapeY1 = 40 + seededFraction(seed, "y1") * 60;
+  const shapeX2 = 60 + seededFraction(seed, "x2") * 120;
+  const shapeY2 = 220 + seededFraction(seed, "y2") * 100;
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg width="640" height="360" viewBox="0 0 640 360" fill="none" xmlns="http://www.w3.org/2000/svg">
   <defs>
     <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#0f172a"/>
-      <stop offset="50%" stop-color="#1e1b4b"/>
-      <stop offset="100%" stop-color="#064e3b"/>
+      <stop offset="0%" stop-color="#111113"/>
+      <stop offset="100%" stop-color="#09090b"/>
     </linearGradient>
-    <linearGradient id="circleGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#6366f1"/>
-      <stop offset="100%" stop-color="#10b981"/>
-    </linearGradient>
-    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
-      <feGaussianBlur stdDeviation="12" result="blur"/>
-      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    <filter id="grain">
+      <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" stitchTiles="stitch" result="noise"/>
+      <feColorMatrix in="noise" type="matrix" values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0.025 0"/>
     </filter>
   </defs>
   <rect width="640" height="360" fill="url(#bgGrad)"/>
-  <rect x="12" y="12" width="616" height="336" rx="12" stroke="rgba(255,255,255,0.08)" stroke-width="2"/>
-  
-  <!-- Subtle tech grid -->
-  <path d="M 0 120 L 640 120 M 0 240 L 640 240 M 160 0 L 160 360 M 320 0 L 320 360 M 480 0 L 480 360" stroke="rgba(255,255,255,0.03)" stroke-width="1"/>
-  
-  <!-- Play Button Circle -->
-  <circle cx="320" cy="165" r="44" fill="url(#circleGrad)" filter="url(#glow)" opacity="0.9"/>
-  <circle cx="320" cy="165" r="40" fill="#0b0f19" opacity="0.75"/>
-  <polygon points="312,148 335,165 312,182" fill="#ffffff"/>
-  
-  <!-- Title Badge -->
-  <rect x="40" y="275" width="560" height="46" rx="8" fill="rgba(10, 15, 29, 0.85)" stroke="rgba(255,255,255,0.1)"/>
-  <text x="320" y="304" fill="#f1f5f9" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="16" font-weight="600" text-anchor="middle">
-    ${safeTitle.length > 55 ? safeTitle.slice(0, 52) + "..." : safeTitle}
+
+  <!-- Formas geométricas discretas, posição derivada do id do vídeo -->
+  <circle cx="${shapeX1.toFixed(0)}" cy="${shapeY1.toFixed(0)}" r="120" fill="${accent}" opacity="0.07"/>
+  <rect x="${shapeX2.toFixed(0)}" y="${shapeY2.toFixed(0)}" width="150" height="150" rx="28" fill="${accent}" opacity="0.05" transform="rotate(18 ${shapeX2.toFixed(0)} ${shapeY2.toFixed(0)})"/>
+
+  <!-- Textura de grão sutil -->
+  <rect width="640" height="360" filter="url(#grain)"/>
+
+  <rect x="0.5" y="0.5" width="639" height="359" rx="14" fill="none" stroke="#27272a" stroke-width="1"/>
+
+  <!-- Selo de categoria -->
+  <g transform="translate(28 26)">
+    <rect width="44" height="44" rx="12" fill="${accent}" opacity="0.16"/>
+    <g transform="translate(10 10)">${category.icon}</g>
+  </g>
+
+  <!-- Título -->
+  <text x="32" y="322" fill="#fafafa" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="19" font-weight="600">
+    ${safeTitle.length > 46 ? safeTitle.slice(0, 43) + "..." : safeTitle}
   </text>
 </svg>`;
 }
@@ -1362,7 +1427,7 @@ const server = http.createServer(async (req, res) => {
       // Ainda não foi gerada (vídeo nunca foi assistido) — mostra o SVG com o título
       const rawName = path.basename(videoId);
       const cleaned = cleanTitle(rawName);
-      const svg = generateFallbackThumbSVG(cleaned);
+      const svg = generateFallbackThumbSVG(cleaned, videoId);
       res.writeHead(200, { "Content-Type": "image/svg+xml; charset=utf-8" });
       res.end(svg);
       return;
@@ -1396,7 +1461,7 @@ const server = http.createServer(async (req, res) => {
           // Serve dynamic SVG fallback
           const rawName = path.basename(videoId);
           const cleaned = cleanTitle(rawName);
-          const svg = generateFallbackThumbSVG(cleaned);
+          const svg = generateFallbackThumbSVG(cleaned, videoId);
           res.writeHead(200, {
             "Content-Type": "image/svg+xml; charset=utf-8",
           });
@@ -1409,7 +1474,7 @@ const server = http.createServer(async (req, res) => {
     // Fallback if video file doesn't exist
     const rawName = path.basename(videoId);
     const cleaned = cleanTitle(rawName);
-    const svg = generateFallbackThumbSVG(cleaned);
+    const svg = generateFallbackThumbSVG(cleaned, videoId);
     res.writeHead(200, { "Content-Type": "image/svg+xml; charset=utf-8" });
     res.end(svg);
     return;
