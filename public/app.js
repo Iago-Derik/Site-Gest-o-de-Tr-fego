@@ -346,8 +346,15 @@ const el = {
   btnExpandAllModules: document.getElementById("btnExpandAllModules"),
   btnCollapseAllModules: document.getElementById("btnCollapseAllModules"),
 
-  // All Courses View
-  allCoursesContainer: document.getElementById("allCoursesContainer"),
+  // Course Detail View
+  courseDetailHeader: document.getElementById("courseDetailHeader"),
+  courseDetailThumbImg: document.getElementById("courseDetailThumbImg"),
+  courseDetailTitle: document.getElementById("courseDetailTitle"),
+  courseDetailDesc: document.getElementById("courseDetailDesc"),
+  courseDetailProgressFill: document.getElementById("courseDetailProgressFill"),
+  courseDetailProgressLabel: document.getElementById("courseDetailProgressLabel"),
+  btnCourseDetailContinue: document.getElementById("btnCourseDetailContinue"),
+  courseDetailModulesContainer: document.getElementById("courseDetailModulesContainer"),
 
   // Player View
   playerLayout: document.getElementById("playerLayout"),
@@ -2668,10 +2675,10 @@ function createVideoCardElement(video) {
 }
 
 // 6. Curriculum Track (Unrestricted height so ALL lessons are scrollable and visible)
-function renderCurriculumTrack() {
-  if (!state.currentCourse) return;
+function renderCurriculumTrack(container = el.curriculumTrackContainer) {
+  if (!state.currentCourse || !container) return;
   const modules = state.currentCourse.modules || [];
-  el.curriculumTrackContainer.innerHTML = "";
+  container.innerHTML = "";
 
   modules.forEach((mod, modIdx) => {
     const card = document.createElement("div");
@@ -2719,6 +2726,7 @@ function renderCurriculumTrack() {
       const isFav = state.favorites.includes(video.id);
       const isCurrent =
         state.currentVideo && state.currentVideo.id === video.id;
+      const noteCount = state.notes.filter((n) => n.videoId === video.id).length;
 
       item.className = `lesson-list-item ${isCurrent ? "active-playing" : ""}`;
       item.innerHTML = `
@@ -2736,6 +2744,17 @@ function renderCurriculumTrack() {
           </div>
           <span style="font-size:12px; font-weight:700; color:var(--text-muted); width:24px;">${lessonIdx + 1}.</span>
           <span class="item-clean-title" title="${video.cleanTitle}">${video.cleanTitle}</span>
+          ${
+            noteCount > 0
+              ? `<span class="item-note-indicator" title="${noteCount} anotação${noteCount === 1 ? "" : "ões"}">
+                  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                  </svg>
+                  ${noteCount}
+                </span>`
+              : ""
+          }
         </div>
         <div class="item-right">
           ${isFav ? `<svg viewBox="0 0 24 24" width="14" height="14" fill="#f59e0b" stroke="#f59e0b"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg>` : ""}
@@ -2766,157 +2785,62 @@ function renderCurriculumTrack() {
       lessonsContainer.appendChild(item);
     });
 
-    el.curriculumTrackContainer.appendChild(card);
+    container.appendChild(card);
   });
 }
 
-// 7. ABA DE TODOS OS CURSOS (Exibindo todos os cursos e módulos como o usuário pediu)
-function renderAllCoursesView() {
-  const courses = state.coursesData?.courses || [];
-  el.allCoursesContainer.innerHTML = "";
+// 7. PÁGINA DO CURSO (detalhe do curso selecionado no seletor do topo)
+function findNextLessonForCourse(course) {
+  const allVideos = (course.modules || []).flatMap((m) => m.videos || []);
+  const inProgress = allVideos.find((v) => {
+    const p = state.progress.videos?.[v.id];
+    return p && p.currentTime > 0 && !p.completed;
+  });
+  if (inProgress) return inProgress;
+  return allVideos.find((v) => !state.progress.videos?.[v.id]?.completed) || allVideos[0];
+}
 
-  if (!courses.length) {
-    el.allCoursesContainer.innerHTML = `
-      <div style="padding:40px; text-align:center; color:var(--text-muted); background:var(--bg-card); border-radius:var(--radius-lg);">
-        <p style="font-size:16px; font-weight:600; margin-bottom:8px;">Nenhum curso encontrado</p>
-        <p style="font-size:13px;">Envie vídeos para o storage do Cloudflare R2 ou clique em Reescanear.</p>
-      </div>
-    `;
+function renderAllCoursesView() {
+  const course = state.currentCourse;
+  if (!el.courseDetailHeader) return;
+
+  if (!course) {
+    el.courseDetailHeader.style.display = "none";
+    if (el.courseDetailModulesContainer) {
+      el.courseDetailModulesContainer.innerHTML = `
+        <div class="empty-state-panel">
+          <h2>Nenhum curso encontrado</h2>
+          <p>Envie vídeos para o storage do Cloudflare R2 ou clique em Reescanear.</p>
+        </div>
+      `;
+    }
     return;
   }
+  el.courseDetailHeader.style.display = "";
 
-  courses.forEach((course, index) => {
-    const card = document.createElement("div");
-    card.className = "course-catalog-card stagger-in";
-    card.style.setProperty("--stagger-i", index);
-
-    const modules = course.modules || [];
-    let completedLessons = 0;
-    modules.forEach((m) => {
-      m.videos.forEach((v) => {
-        if (state.progress.videos?.[v.id]?.completed) completedLessons++;
-      });
-    });
-    const totalLessons = course.totalVideos || 0;
-    const coursePct =
-      totalLessons > 0
-        ? Math.round((completedLessons / totalLessons) * 100)
-        : 0;
-
-    card.innerHTML = `
-      <div class="course-catalog-header">
-        <div class="course-catalog-title-area">
-          <span class="course-catalog-tag">CURSO DISPONÍVEL</span>
-          <h2 class="course-catalog-title">${course.cleanTitle || course.title}</h2>
-        </div>
-        <div class="course-catalog-stats">
-          <div class="catalog-stat-pill">
-            <span class="catalog-stat-label">Módulos</span>
-            <span class="catalog-stat-val">${modules.length}</span>
-          </div>
-          <div class="catalog-stat-pill">
-            <span class="catalog-stat-label">Aulas</span>
-            <span class="catalog-stat-val">${completedLessons}/${totalLessons}</span>
-          </div>
-          <div class="catalog-stat-pill">
-            <span class="catalog-stat-label">Concluído</span>
-            <span class="catalog-stat-val" style="color:var(--accent-primary);">${coursePct}%</span>
-          </div>
-          <button class="btn btn-primary btn-sm btn-select-course">
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
-              <polygon points="5 3 19 12 5 21 5 3"></polygon>
-            </svg>
-            <span>Acessar Curso</span>
-          </button>
-        </div>
-      </div>
-
-      <div style="margin-bottom:14px;">
-        <h3 style="font-size:16px; font-weight:700; color:var(--text-secondary);">Módulos do Curso:</h3>
-      </div>
-
-      <div class="module-catalog-grid"></div>
-    `;
-
-    card.querySelector(".btn-select-course").onclick = () => {
-      state.currentCourse = course;
-      renderAll();
-      switchView("viewHome");
-      showToast(`Curso selecionado: ${course.cleanTitle}`, "info");
-    };
-
-    const modulesGrid = card.querySelector(".module-catalog-grid");
-    modules.forEach((mod, mIdx) => {
-      const modCard = document.createElement("div");
-      modCard.className = "module-catalog-card";
-
-      let modComp = 0;
-      mod.videos.forEach((v) => {
-        if (state.progress.videos?.[v.id]?.completed) modComp++;
-      });
-      const modTotal = mod.videos.length;
-      const modPct = modTotal > 0 ? Math.round((modComp / modTotal) * 100) : 0;
-
-      let lessonsHTML = "";
-      mod.videos.forEach((v, vIdx) => {
-        const isComp = !!state.progress.videos?.[v.id]?.completed;
-        lessonsHTML += `
-          <div class="lesson-preview-item" data-videoid="${v.id}">
-            <span>${vIdx + 1}. ${v.cleanTitle}</span>
-            <span style="font-size:11px; font-weight:700; color:${isComp ? "var(--accent-success)" : "var(--text-muted)"}; flex-shrink:0; margin-left:8px;">
-              ${isComp ? "✓ Concluída" : "Assistir"}
-            </span>
-          </div>
-        `;
-      });
-
-      modCard.innerHTML = `
-        <div class="module-card-top">
-          <span class="module-number-pill">MÓDULO ${mIdx + 1}</span>
-          <span style="font-size:12px; font-weight:600; color:var(--text-secondary);">${modComp}/${modTotal} aulas</span>
-        </div>
-        <h3 class="module-catalog-name">${mod.cleanTitle}</h3>
-        
-        <div class="module-catalog-progress">
-          <div class="module-progress-bar-wide">
-            <div style="height:100%; width:${modPct}%; background:var(--accent-success); border-radius:4px;"></div>
-          </div>
-          <span style="font-size:11px; font-weight:700; color:var(--text-muted);">${modPct}%</span>
-        </div>
-
-        <div class="module-lessons-preview-list">
-          ${lessonsHTML}
-        </div>
-
-        <button class="btn btn-secondary btn-sm module-card-btn">
-          <span>Abrir Módulo (${mod.videos.length} aulas)</span>
-        </button>
-      `;
-
-      modCard.querySelectorAll(".lesson-preview-item").forEach((lItem) => {
-        lItem.onclick = () => {
-          const vId = lItem.dataset.videoid;
-          const targetV = mod.videos.find((v) => v.id === vId);
-          if (targetV) {
-            state.currentCourse = course;
-            playVideo(targetV);
-          }
-        };
-      });
-
-      modCard.querySelector(".module-card-btn").onclick = () => {
-        state.currentCourse = course;
-        const targetV =
-          mod.videos.find((v) => !state.progress.videos?.[v.id]?.completed) ||
-          mod.videos[0];
-        if (targetV) playVideo(targetV);
-      };
-
-      modulesGrid.appendChild(modCard);
-    });
-
-    el.allCoursesContainer.appendChild(card);
+  const modules = course.modules || [];
+  const allVideos = modules.flatMap((m) => m.videos || []);
+  let completedLessons = 0;
+  allVideos.forEach((v) => {
+    if (state.progress.videos?.[v.id]?.completed) completedLessons++;
   });
+  const totalLessons = course.totalVideos || 0;
+  const coursePct =
+    totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0;
+
+  el.courseDetailThumbImg.src = allVideos[0]?.thumbUrl || "";
+  el.courseDetailThumbImg.alt = course.cleanTitle || course.title;
+  el.courseDetailTitle.textContent = course.cleanTitle || course.title;
+  el.courseDetailDesc.textContent = `${modules.length} módulo${modules.length === 1 ? "" : "s"} · ${totalLessons} aula${totalLessons === 1 ? "" : "s"}`;
+  el.courseDetailProgressFill.style.width = `${coursePct}%`;
+  el.courseDetailProgressLabel.textContent = `${completedLessons}/${totalLessons} aulas · ${coursePct}% concluído`;
+
+  el.btnCourseDetailContinue.onclick = () => {
+    const target = findNextLessonForCourse(course);
+    if (target) playVideo(target);
+  };
+
+  renderCurriculumTrack(el.courseDetailModulesContainer);
 }
 
 // 8. Player Details & Sidebar

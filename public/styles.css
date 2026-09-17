@@ -1380,6 +1380,88 @@ body {
 }
 
 /* ==========================================================================
+   PÁGINA DO CURSO — cabeçalho de detalhe do curso selecionado
+   ========================================================================== */
+.course-detail-header {
+  display: flex;
+  gap: var(--space-6);
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+  margin-bottom: var(--space-6);
+}
+.course-detail-thumb {
+  flex: 0 0 320px;
+  aspect-ratio: 16 / 9;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--bg-surface);
+}
+.course-detail-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.course-detail-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--space-2);
+}
+.course-detail-title {
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+.course-detail-desc {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: var(--space-2);
+}
+.course-detail-progress-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+.course-detail-progress-track {
+  flex: 1;
+  max-width: 320px;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--border-subtle);
+  overflow: hidden;
+}
+.course-detail-progress-fill {
+  height: 100%;
+  background: var(--accent-primary);
+  border-radius: 3px;
+  transition: width var(--transition-smooth);
+}
+.course-detail-progress-row span {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+.course-detail-header .btn {
+  align-self: flex-start;
+}
+
+@media (max-width: 720px) {
+  .course-detail-header {
+    flex-direction: column;
+  }
+  .course-detail-thumb {
+    flex-basis: auto;
+    width: 100%;
+  }
+}
+
+/* ==========================================================================
    TRILHOS HORIZONTAIS — Recentes / Favoritos na Home
    ========================================================================== */
 .horizontal-rail {
@@ -1882,6 +1964,16 @@ body {
 }
 .lesson-list-item.active-playing .item-clean-title {
   color: var(--accent-primary);
+}
+
+.item-note-indicator {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
 }
 
 .item-right {
@@ -2750,14 +2842,7 @@ body {
   box-shadow: 0 0 14px var(--accent-primary-glow);
 }
 
-/* Course catalog */
-.all-courses-container {
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-}
-
-/* ========================================================================== 
+/* ==========================================================================
    PROFESSIONAL WORKSPACE
    ========================================================================== */
 .work-header,
@@ -3714,129 +3799,11 @@ body {
   font-size: 28px;
 }
 
-.course-catalog-card {
-  background: var(--bg-card);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-lg);
-  padding: 24px;
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.24);
-}
-
-.course-catalog-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 24px;
-  padding-bottom: 20px;
-  border-bottom: 1px solid var(--border-subtle);
-}
-
-.course-catalog-title-area {
-  min-width: 0;
-}
-.course-catalog-tag,
 .module-number-pill {
   color: var(--accent-secondary);
   font-size: 10px;
   font-weight: 800;
   letter-spacing: 0.8px;
-}
-.course-catalog-title {
-  margin-top: 8px;
-  font-size: 24px;
-  line-height: 1.25;
-}
-.course-catalog-stats {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-.catalog-stat-pill {
-  min-width: 76px;
-  padding: 8px 10px;
-  text-align: center;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
-}
-.catalog-stat-label {
-  display: block;
-  color: var(--text-muted);
-  font-size: 10px;
-}
-.catalog-stat-val {
-  display: block;
-  margin-top: 2px;
-  color: var(--text-primary);
-  font-size: 14px;
-  font-weight: 800;
-}
-.module-catalog-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 14px;
-}
-.module-catalog-card {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  padding: 16px;
-  background: rgba(8, 9, 13, 0.42);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-}
-.module-card-top,
-.module-catalog-progress {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 8px;
-}
-.module-catalog-name {
-  margin: 8px 0 12px;
-  font-size: 16px;
-  line-height: 1.35;
-}
-.module-catalog-progress {
-  margin-bottom: 14px;
-}
-.module-progress-bar-wide {
-  height: 5px;
-  flex: 1;
-  background: rgba(255, 255, 255, 0.08);
-  border-radius: 4px;
-  overflow: hidden;
-}
-.module-lessons-preview-list {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  margin-bottom: 14px;
-}
-.lesson-preview-item {
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 7px 8px;
-  border-radius: 5px;
-  color: var(--text-secondary);
-  font-size: 12px;
-  cursor: pointer;
-}
-.lesson-preview-item span:first-child {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.lesson-preview-item:hover {
-  color: var(--text-primary);
-  background: rgba(255, 255, 255, 0.06);
-}
-.module-card-btn {
-  margin-top: auto;
-  width: 100%;
 }
 
 /* ==========================================================================
@@ -4160,15 +4127,6 @@ body {
   }
   .stats-grid {
     grid-template-columns: 1fr;
-  }
-  .course-catalog-card {
-    padding: 16px;
-  }
-  .course-catalog-header {
-    flex-direction: column;
-  }
-  .course-catalog-stats {
-    justify-content: flex-start;
   }
   .work-kpi-grid {
     grid-template-columns: repeat(2, 1fr);

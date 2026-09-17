@@ -446,16 +446,38 @@
     </section>
 
     <!-- ================================================================= -->
-    <!-- 2. ALL COURSES & MODULES VIEW (ABA DE TODOS OS CURSOS) -->
+    <!-- 2. COURSE DETAIL VIEW (curso selecionado no seletor do topo) -->
     <!-- ================================================================= -->
     <section class="view-section" id="viewCourses">
-      <div class="shelf-header">
-        <div class="shelf-title-box">
-          <h1 class="shelf-title">Todos os Cursos</h1>
-          <span class="shelf-subtitle">Visualize todos os cursos disponíveis e a lista completa de módulos e aulas</span>
+      <div class="course-detail-header" id="courseDetailHeader">
+        <div class="course-detail-thumb">
+          <img id="courseDetailThumbImg" src="" alt="" />
+        </div>
+        <div class="course-detail-info">
+          <span class="eyebrow-label">CURSO</span>
+          <h1 class="course-detail-title" id="courseDetailTitle">Curso</h1>
+          <p class="course-detail-desc" id="courseDetailDesc">0 módulos · 0 aulas</p>
+          <div class="course-detail-progress-row">
+            <div class="course-detail-progress-track">
+              <div class="course-detail-progress-fill" id="courseDetailProgressFill" style="width: 0%"></div>
+            </div>
+            <span id="courseDetailProgressLabel">0/0 aulas · 0% concluído</span>
+          </div>
+          <button class="btn btn-primary" id="btnCourseDetailContinue">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+              <polygon points="5 3 19 12 5 21 5 3"></polygon>
+            </svg>
+            <span>Continuar estudando</span>
+          </button>
         </div>
       </div>
-      <div class="all-courses-container" id="allCoursesContainer"></div>
+
+      <div class="shelf-header">
+        <div class="shelf-title-box">
+          <h2 class="shelf-title">Conteúdo do curso</h2>
+        </div>
+      </div>
+      <div class="curriculum-track" id="courseDetailModulesContainer"></div>
     </section>
 
     <!-- ================================================================= -->
