@@ -116,6 +116,7 @@ async function checkAuth() {
 
   authScreen.style.display = "none";
   deniedScreen.style.display = "none";
+  state.currentUserEmail = session.user?.email || "";
   setupAccountMenu(session.user);
   showPageLoading();
   fetchInitialData(); // Só carrega os dados DEPOIS de logado e autorizado
@@ -245,6 +246,7 @@ document.addEventListener("DOMContentLoaded", () => {
 const state = {
   coursesData: null,
   currentCourse: null,
+  currentUserEmail: null,
   currentVideo: null,
   loadedVideoId: null, // Tracks currently loaded video ID to prevent src reloading
   progress: { lastVideoId: null, videos: {} },
@@ -325,10 +327,15 @@ const el = {
   heroThumbImg: document.getElementById("heroThumbImg"),
   heroDurationTag: document.getElementById("heroDurationTag"),
 
-  statTotalVideos: document.getElementById("statTotalVideos"),
+  homeGreetingText: document.getElementById("homeGreetingText"),
+  statHoursStudied: document.getElementById("statHoursStudied"),
   statCompletedVideos: document.getElementById("statCompletedVideos"),
-  statInProgressVideos: document.getElementById("statInProgressVideos"),
-  statTotalNotes: document.getElementById("statTotalNotes"),
+  statCoursesInProgress: document.getElementById("statCoursesInProgress"),
+  statStreak: document.getElementById("statStreak"),
+  myCoursesGrid: document.getElementById("myCoursesGrid"),
+  homeRecentRail: document.getElementById("homeRecentRail"),
+  shelfHomeFavorites: document.getElementById("shelfHomeFavorites"),
+  homeFavoritesRail: document.getElementById("homeFavoritesRail"),
 
   homeFilterTabs: document.getElementById("homeFilterTabs"),
   homeVideosGrid: document.getElementById("homeVideosGrid"),
@@ -951,8 +958,12 @@ function applyMainSidebarCollapsed(collapsed) {
 function renderAll() {
   renderCourseDropdown();
   updateHeaderProgress();
+  renderHomeGreeting();
   renderHomeHero();
   renderStatsGrid();
+  renderMyCoursesGrid();
+  renderHomeRecentRail();
+  renderHomeFavoritesRail();
   renderHomeVideosGrid();
   renderHomeTopics();
   renderCurriculumTrack();
@@ -2304,22 +2315,68 @@ function renderHomeHero() {
   };
 }
 
+function formatHoursStudied(totalSeconds) {
+  const hours = totalSeconds / 3600;
+  if (hours < 1) return `${Math.round(totalSeconds / 60)}min`;
+  return `${hours.toFixed(hours < 10 ? 1 : 0)}h`;
+}
+
+function computeStreakDays() {
+  const dates = new Set();
+  Object.values(state.progress.videos || {}).forEach((p) => {
+    if (p.lastWatchedAt) dates.add(new Date(p.lastWatchedAt).toDateString());
+  });
+  if (!dates.size) return 0;
+  let streak = 0;
+  const cursor = new Date();
+  if (!dates.has(cursor.toDateString())) cursor.setDate(cursor.getDate() - 1);
+  while (dates.has(cursor.toDateString())) {
+    streak++;
+    cursor.setDate(cursor.getDate() - 1);
+  }
+  return streak;
+}
+
 // 4. Stats Grid
 function renderStatsGrid() {
   const allVideos = getAllCurrentCourseVideos();
   let completed = 0;
-  let inProgress = 0;
+  let secondsStudied = 0;
 
   allVideos.forEach((v) => {
     const p = state.progress.videos?.[v.id];
-    if (p && p.completed) completed++;
-    else if (p && p.currentTime > 0) inProgress++;
+    if (!p) return;
+    if (p.completed) completed++;
+    secondsStudied += p.completed ? p.duration || p.currentTime || 0 : p.currentTime || 0;
   });
 
-  el.statTotalVideos.textContent = allVideos.length;
+  const courses = state.coursesData?.courses || [];
+  const coursesInProgress = courses.filter((course) =>
+    (course.modules || []).some((m) =>
+      (m.videos || []).some((v) => {
+        const p = state.progress.videos?.[v.id];
+        return p && p.currentTime > 0 && !p.completed;
+      }),
+    ),
+  ).length;
+
+  el.statHoursStudied.textContent = formatHoursStudied(secondsStudied);
   el.statCompletedVideos.textContent = completed;
-  el.statInProgressVideos.textContent = inProgress;
-  el.statTotalNotes.textContent = state.notes.length;
+  el.statCoursesInProgress.textContent = coursesInProgress;
+  const streak = computeStreakDays();
+  el.statStreak.textContent = `${streak} dia${streak === 1 ? "" : "s"}`;
+}
+
+function renderHomeGreeting() {
+  if (!el.homeGreetingText) return;
+  const email = state.currentUserEmail || "";
+  const name = email.split("@")[0]?.replace(/[._-]+/g, " ").trim();
+  const displayName = name
+    ? name.replace(/\b\w/g, (c) => c.toUpperCase())
+    : "";
+  el.homeGreetingText.textContent = displayName
+    ? `Olá, ${displayName}! 👋`
+    : "Olá! 👋";
 }
 
 // 5. Home Videos Grid
@@ -2426,6 +2483,94 @@ function renderHomeTopics() {
       renderHomeVideosGrid();
     });
     el.homeTopicsList.appendChild(button);
+  });
+}
+
+function selectCourse(course) {
+  state.currentCourse = course;
+  renderAll();
+  switchView("viewCourses");
+}
+
+function createCourseCardElement(course) {
+  const allVideos = (course.modules || []).flatMap((m) => m.videos || []);
+  const thumbUrl = allVideos[0]?.thumbUrl || "";
+  const moduleCount = (course.modules || []).length;
+  let lastActivity = null;
+  allVideos.forEach((v) => {
+    const p = state.progress.videos?.[v.id];
+    if (p?.lastWatchedAt && (!lastActivity || p.lastWatchedAt > lastActivity)) {
+      lastActivity = p.lastWatchedAt;
+    }
+  });
+
+  const card = document.createElement("button");
+  card.className = "course-card";
+  card.innerHTML = `
+    <div class="course-card-thumb">
+      <img src="${thumbUrl}" alt="${escapeHTML(course.cleanTitle || course.title)}" loading="lazy" />
+    </div>
+    <div class="course-card-body">
+      <h3 class="course-card-title">${escapeHTML(course.cleanTitle || course.title)}</h3>
+      <p class="course-card-desc">${moduleCount} módulo${moduleCount === 1 ? "" : "s"} · ${course.totalVideos} aula${course.totalVideos === 1 ? "" : "s"}</p>
+      <div class="course-card-progress-track">
+        <div class="course-card-progress-fill" style="width: ${course.percentage || 0}%"></div>
+      </div>
+      <div class="course-card-footer">
+        <span>${course.percentage || 0}% concluído</span>
+        ${lastActivity ? `<span>${formatRelativeTime(lastActivity)}</span>` : ""}
+      </div>
+    </div>
+  `;
+  card.addEventListener("click", () => selectCourse(course));
+  return card;
+}
+
+function renderMyCoursesGrid() {
+  if (!el.myCoursesGrid) return;
+  const courses = state.coursesData?.courses || [];
+  el.myCoursesGrid.innerHTML = "";
+  courses.forEach((course) => {
+    el.myCoursesGrid.appendChild(createCourseCardElement(course));
+  });
+}
+
+function watchedEntriesForCourse(course) {
+  const allVideos = (course.modules || []).flatMap((m) => m.videos || []);
+  return allVideos
+    .map((v) => ({ video: v, p: state.progress.videos?.[v.id] }))
+    .filter((entry) => entry.p && entry.p.lastWatchedAt);
+}
+
+function renderHomeRecentRail() {
+  if (!el.homeRecentRail) return;
+  const courses = state.coursesData?.courses || [];
+  const entries = courses
+    .flatMap((course) => watchedEntriesForCourse(course))
+    .sort((a, b) => new Date(b.p.lastWatchedAt) - new Date(a.p.lastWatchedAt))
+    .slice(0, 10);
+
+  const shelf = el.homeRecentRail.closest(".section-shelf");
+  if (!entries.length) {
+    if (shelf) shelf.hidden = true;
+    return;
+  }
+  if (shelf) shelf.hidden = false;
+  el.homeRecentRail.innerHTML = "";
+  entries.forEach(({ video }) => {
+    el.homeRecentRail.appendChild(createVideoCardElement(video));
+  });
+}
+
+function renderHomeFavoritesRail() {
+  if (!el.homeFavoritesRail) return;
+  const allVideos = getAllCurrentCourseVideos();
+  const favVideos = allVideos.filter((v) => state.favorites.includes(v.id));
+  if (el.shelfHomeFavorites) el.shelfHomeFavorites.hidden = !favVideos.length;
+  if (!favVideos.length) return;
+  el.homeFavoritesRail.innerHTML = "";
+  favVideos.slice(0, 10).forEach((v) => {
+    el.homeFavoritesRail.appendChild(createVideoCardElement(v));
   });
 }
 
@@ -3331,7 +3476,12 @@ function switchView(viewId) {
   } else if (viewId === "viewHistory") {
     renderHistoryView();
   } else if (viewId === "viewHome") {
+    renderHomeGreeting();
     renderHomeHero();
+    renderStatsGrid();
+    renderMyCoursesGrid();
+    renderHomeRecentRail();
+    renderHomeFavoritesRail();
     renderHomeVideosGrid();
     renderHomeTopics();
     renderCurriculumTrack();

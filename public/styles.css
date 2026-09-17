@@ -1288,6 +1288,116 @@ body {
 }
 
 /* ==========================================================================
+   SAUDAÇÃO DA HOME
+   ========================================================================== */
+.home-greeting {
+  margin-bottom: var(--space-5);
+}
+.home-greeting h1 {
+  font-size: 26px;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin-bottom: 2px;
+}
+.home-greeting p {
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+/* ==========================================================================
+   MEUS CURSOS — grid de cursos na Home
+   ========================================================================== */
+.course-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: var(--space-5);
+}
+.course-card {
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  padding: 0;
+  transition: var(--transition-fast);
+}
+.course-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--border-focus);
+  box-shadow: var(--shadow-md);
+}
+.course-card-thumb {
+  aspect-ratio: 16 / 9;
+  background: var(--bg-surface);
+  overflow: hidden;
+}
+.course-card-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform var(--transition-smooth);
+}
+.course-card:hover .course-card-thumb img {
+  transform: scale(1.02);
+}
+.course-card-body {
+  padding: var(--space-4);
+}
+.course-card-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+.course-card-desc {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  margin-bottom: var(--space-3);
+}
+.course-card-progress-track {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--border-subtle);
+  overflow: hidden;
+  margin-bottom: var(--space-2);
+}
+.course-card-progress-fill {
+  height: 100%;
+  background: var(--accent-primary);
+  border-radius: 2px;
+}
+.course-card-footer {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11.5px;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+/* ==========================================================================
+   TRILHOS HORIZONTAIS — Recentes / Favoritos na Home
+   ========================================================================== */
+.horizontal-rail {
+  display: flex;
+  gap: var(--space-5);
+  overflow-x: auto;
+  padding-bottom: var(--space-2);
+  scroll-snap-type: x proximity;
+}
+.horizontal-rail .video-card {
+  flex: 0 0 260px;
+  scroll-snap-align: start;
+}
+.horizontal-rail::-webkit-scrollbar {
+  height: 6px;
+}
+
+/* ==========================================================================
    HISTÓRICO — lista cronológica de aulas assistidas
    ========================================================================== */
 .history-list {
