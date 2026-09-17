@@ -116,6 +116,7 @@ async function checkAuth() {
 
   authScreen.style.display = "none";
   deniedScreen.style.display = "none";
+  state.currentUserEmail = session.user?.email || "";
   setupAccountMenu(session.user);
   showPageLoading();
   fetchInitialData(); // Só carrega os dados DEPOIS de logado e autorizado
@@ -245,6 +246,8 @@ document.addEventListener("DOMContentLoaded", () => {
 const state = {
   coursesData: null,
   currentCourse: null,
+  currentUserEmail: null,
+  favoritesSection: "lessons",
   currentVideo: null,
   loadedVideoId: null, // Tracks currently loaded video ID to prevent src reloading
   progress: { lastVideoId: null, videos: {} },
@@ -284,15 +287,19 @@ const el = {
   courseDropdownMenu: document.getElementById("courseDropdownMenu"),
   globalSearchInput: document.getElementById("globalSearchInput"),
   btnClearSearch: document.getElementById("btnClearSearch"),
+  btnMobileSearch: document.getElementById("btnMobileSearch"),
+  commandPaletteBackdrop: document.getElementById("commandPaletteBackdrop"),
+  commandPaletteInput: document.getElementById("commandPaletteInput"),
+  commandPaletteResults: document.getElementById("commandPaletteResults"),
   headerCourseProgress: document.getElementById("headerCourseProgress"),
   headerProgressPercent: document.getElementById("headerProgressPercent"),
   headerProgressBar: document.getElementById("headerProgressBar"),
   headerProgressCount: document.getElementById("headerProgressCount"),
   navBtnHome: document.getElementById("navBtnHome"),
   navBtnCourses: document.getElementById("navBtnCourses"),
-  navBtnPlayer: document.getElementById("navBtnPlayer"),
   navBtnNotes: document.getElementById("navBtnNotes"),
   navBtnFavorites: document.getElementById("navBtnFavorites"),
+  navBtnHistory: document.getElementById("navBtnHistory"),
   navBtnWork: document.getElementById("navBtnWork"),
   btnRescan: document.getElementById("btnRescan"),
   btnSettings: document.getElementById("btnSettings"),
@@ -304,6 +311,8 @@ const el = {
   viewPlayer: document.getElementById("viewPlayer"),
   viewNotes: document.getElementById("viewNotes"),
   viewFavorites: document.getElementById("viewFavorites"),
+  viewHistory: document.getElementById("viewHistory"),
+  historyList: document.getElementById("historyList"),
   viewWork: document.getElementById("viewWork"),
 
   // Home View
@@ -323,10 +332,15 @@ const el = {
   heroThumbImg: document.getElementById("heroThumbImg"),
   heroDurationTag: document.getElementById("heroDurationTag"),
 
-  statTotalVideos: document.getElementById("statTotalVideos"),
+  homeGreetingText: document.getElementById("homeGreetingText"),
+  statHoursStudied: document.getElementById("statHoursStudied"),
   statCompletedVideos: document.getElementById("statCompletedVideos"),
-  statInProgressVideos: document.getElementById("statInProgressVideos"),
-  statTotalNotes: document.getElementById("statTotalNotes"),
+  statCoursesInProgress: document.getElementById("statCoursesInProgress"),
+  statStreak: document.getElementById("statStreak"),
+  myCoursesGrid: document.getElementById("myCoursesGrid"),
+  homeRecentRail: document.getElementById("homeRecentRail"),
+  shelfHomeFavorites: document.getElementById("shelfHomeFavorites"),
+  homeFavoritesRail: document.getElementById("homeFavoritesRail"),
 
   homeFilterTabs: document.getElementById("homeFilterTabs"),
   homeVideosGrid: document.getElementById("homeVideosGrid"),
@@ -337,8 +351,15 @@ const el = {
   btnExpandAllModules: document.getElementById("btnExpandAllModules"),
   btnCollapseAllModules: document.getElementById("btnCollapseAllModules"),
 
-  // All Courses View
-  allCoursesContainer: document.getElementById("allCoursesContainer"),
+  // Course Detail View
+  courseDetailHeader: document.getElementById("courseDetailHeader"),
+  courseDetailThumbImg: document.getElementById("courseDetailThumbImg"),
+  courseDetailTitle: document.getElementById("courseDetailTitle"),
+  courseDetailDesc: document.getElementById("courseDetailDesc"),
+  courseDetailProgressFill: document.getElementById("courseDetailProgressFill"),
+  courseDetailProgressLabel: document.getElementById("courseDetailProgressLabel"),
+  btnCourseDetailContinue: document.getElementById("btnCourseDetailContinue"),
+  courseDetailModulesContainer: document.getElementById("courseDetailModulesContainer"),
 
   // Player View
   playerLayout: document.getElementById("playerLayout"),
@@ -412,8 +433,12 @@ const el = {
 
   // All Notes & Favorites Views
   globalNotesContainer: document.getElementById("globalNotesContainer"),
+  notesSearchInput: document.getElementById("notesSearchInput"),
   btnExportAllNotes: document.getElementById("btnExportAllNotes"),
   favoritesVideosGrid: document.getElementById("favoritesVideosGrid"),
+  favoritesTabs: document.getElementById("favoritesTabs"),
+  favoritesByCourseContainer: document.getElementById("favoritesByCourseContainer"),
+  favoritesNotesList: document.getElementById("favoritesNotesList"),
 
   // Professional workspace
   workClientList: document.getElementById("workClientList"),
@@ -949,8 +974,12 @@ function applyMainSidebarCollapsed(collapsed) {
 function renderAll() {
   renderCourseDropdown();
   updateHeaderProgress();
+  renderHomeGreeting();
   renderHomeHero();
   renderStatsGrid();
+  renderMyCoursesGrid();
+  renderHomeRecentRail();
+  renderHomeFavoritesRail();
   renderHomeVideosGrid();
   renderHomeTopics();
   renderCurriculumTrack();
@@ -2302,22 +2331,68 @@ function renderHomeHero() {
   };
 }
 
+function formatHoursStudied(totalSeconds) {
+  const hours = totalSeconds / 3600;
+  if (hours < 1) return `${Math.round(totalSeconds / 60)}min`;
+  return `${hours.toFixed(hours < 10 ? 1 : 0)}h`;
+}
+
+function computeStreakDays() {
+  const dates = new Set();
+  Object.values(state.progress.videos || {}).forEach((p) => {
+    if (p.lastWatchedAt) dates.add(new Date(p.lastWatchedAt).toDateString());
+  });
+  if (!dates.size) return 0;
+  let streak = 0;
+  const cursor = new Date();
+  if (!dates.has(cursor.toDateString())) cursor.setDate(cursor.getDate() - 1);
+  while (dates.has(cursor.toDateString())) {
+    streak++;
+    cursor.setDate(cursor.getDate() - 1);
+  }
+  return streak;
+}
+
 // 4. Stats Grid
 function renderStatsGrid() {
   const allVideos = getAllCurrentCourseVideos();
   let completed = 0;
-  let inProgress = 0;
+  let secondsStudied = 0;
 
   allVideos.forEach((v) => {
     const p = state.progress.videos?.[v.id];
-    if (p && p.completed) completed++;
-    else if (p && p.currentTime > 0) inProgress++;
+    if (!p) return;
+    if (p.completed) completed++;
+    secondsStudied += p.completed ? p.duration || p.currentTime || 0 : p.currentTime || 0;
   });
 
-  el.statTotalVideos.textContent = allVideos.length;
+  const courses = state.coursesData?.courses || [];
+  const coursesInProgress = courses.filter((course) =>
+    (course.modules || []).some((m) =>
+      (m.videos || []).some((v) => {
+        const p = state.progress.videos?.[v.id];
+        return p && p.currentTime > 0 && !p.completed;
+      }),
+    ),
+  ).length;
+
+  el.statHoursStudied.textContent = formatHoursStudied(secondsStudied);
   el.statCompletedVideos.textContent = completed;
-  el.statInProgressVideos.textContent = inProgress;
-  el.statTotalNotes.textContent = state.notes.length;
+  el.statCoursesInProgress.textContent = coursesInProgress;
+  const streak = computeStreakDays();
+  el.statStreak.textContent = `${streak} dia${streak === 1 ? "" : "s"}`;
+}
+
+function renderHomeGreeting() {
+  if (!el.homeGreetingText) return;
+  const email = state.currentUserEmail || "";
+  const name = email.split("@")[0]?.replace(/[._-]+/g, " ").trim();
+  const displayName = name
+    ? name.replace(/\b\w/g, (c) => c.toUpperCase())
+    : "";
+  el.homeGreetingText.textContent = displayName
+    ? `Olá, ${displayName}! 👋`
+    : "Olá! 👋";
 }
 
 // 5. Home Videos Grid
@@ -2427,6 +2502,96 @@ function renderHomeTopics() {
   });
 }
 
+function selectCourse(course) {
+  state.currentCourse = course;
+  renderAll();
+  switchView("viewCourses");
+}
+
+function createCourseCardElement(course) {
+  const allVideos = (course.modules || []).flatMap((m) => m.videos || []);
+  const thumbUrl = allVideos[0]?.thumbUrl || "";
+  const moduleCount = (course.modules || []).length;
+  let lastActivity = null;
+  allVideos.forEach((v) => {
+    const p = state.progress.videos?.[v.id];
+    if (p?.lastWatchedAt && (!lastActivity || p.lastWatchedAt > lastActivity)) {
+      lastActivity = p.lastWatchedAt;
+    }
+  });
+
+  const card = document.createElement("button");
+  card.className = "course-card";
+  card.innerHTML = `
+    <div class="course-card-thumb">
+      <img src="${thumbUrl}" alt="${escapeHTML(course.cleanTitle || course.title)}" loading="lazy" />
+    </div>
+    <div class="course-card-body">
+      <h3 class="course-card-title">${escapeHTML(course.cleanTitle || course.title)}</h3>
+      <p class="course-card-desc">${moduleCount} módulo${moduleCount === 1 ? "" : "s"} · ${course.totalVideos} aula${course.totalVideos === 1 ? "" : "s"}</p>
+      <div class="course-card-progress-track">
+        <div class="course-card-progress-fill" style="width: ${course.percentage || 0}%"></div>
+      </div>
+      <div class="course-card-footer">
+        <span>${course.percentage || 0}% concluído</span>
+        ${lastActivity ? `<span>${formatRelativeTime(lastActivity)}</span>` : ""}
+      </div>
+    </div>
+  `;
+  card.addEventListener("click", () => selectCourse(course));
+  return card;
+}
+
+function renderMyCoursesGrid() {
+  if (!el.myCoursesGrid) return;
+  const courses = state.coursesData?.courses || [];
+  el.myCoursesGrid.innerHTML = "";
+  courses.forEach((course) => {
+    el.myCoursesGrid.appendChild(createCourseCardElement(course));
+  });
+}
+
+function watchedEntriesForCourse(course) {
+  const allVideos = (course.modules || []).flatMap((m) => m.videos || []);
+  return allVideos
+    .map((v) => ({ video: v, p: state.progress.videos?.[v.id] }))
+    .filter((entry) => entry.p && entry.p.lastWatchedAt);
+}
+
+function renderHomeRecentRail() {
+  if (!el.homeRecentRail) return;
+  const courses = state.coursesData?.courses || [];
+  const entries = courses
+    .flatMap((course) => watchedEntriesForCourse(course))
+    .sort((a, b) => new Date(b.p.lastWatchedAt) - new Date(a.p.lastWatchedAt))
+    .slice(0, 10);
+
+  const shelf = el.homeRecentRail.closest(".section-shelf");
+  if (!entries.length) {
+    if (shelf) shelf.hidden = true;
+    return;
+  }
+  if (shelf) shelf.hidden = false;
+  el.homeRecentRail.innerHTML = "";
+  entries.forEach(({ video }) => {
+    el.homeRecentRail.appendChild(createVideoCardElement(video));
+  });
+}
+
+function renderHomeFavoritesRail() {
+  if (!el.homeFavoritesRail) return;
+  const allVideos = (state.coursesData?.courses || []).flatMap((c) =>
+    (c.modules || []).flatMap((m) => m.videos || []),
+  );
+  const favVideos = allVideos.filter((v) => state.favorites.includes(v.id));
+  if (el.shelfHomeFavorites) el.shelfHomeFavorites.hidden = !favVideos.length;
+  if (!favVideos.length) return;
+  el.homeFavoritesRail.innerHTML = "";
+  favVideos.slice(0, 10).forEach((v) => {
+    el.homeFavoritesRail.appendChild(createVideoCardElement(v));
+  });
+}
+
 function createVideoCardElement(video) {
   const card = document.createElement("div");
   card.className = "video-card";
@@ -2514,17 +2679,17 @@ function createVideoCardElement(video) {
   });
 
   card.addEventListener("click", () => {
-    playVideo(video);
+    playVideoFromAnyCourse(video);
   });
 
   return card;
 }
 
 // 6. Curriculum Track (Unrestricted height so ALL lessons are scrollable and visible)
-function renderCurriculumTrack() {
-  if (!state.currentCourse) return;
+function renderCurriculumTrack(container = el.curriculumTrackContainer) {
+  if (!state.currentCourse || !container) return;
   const modules = state.currentCourse.modules || [];
-  el.curriculumTrackContainer.innerHTML = "";
+  container.innerHTML = "";
 
   modules.forEach((mod, modIdx) => {
     const card = document.createElement("div");
@@ -2572,6 +2737,7 @@ function renderCurriculumTrack() {
       const isFav = state.favorites.includes(video.id);
       const isCurrent =
         state.currentVideo && state.currentVideo.id === video.id;
+      const noteCount = state.notes.filter((n) => n.videoId === video.id).length;
 
       item.className = `lesson-list-item ${isCurrent ? "active-playing" : ""}`;
       item.innerHTML = `
@@ -2589,6 +2755,17 @@ function renderCurriculumTrack() {
           </div>
           <span style="font-size:12px; font-weight:700; color:var(--text-muted); width:24px;">${lessonIdx + 1}.</span>
           <span class="item-clean-title" title="${video.cleanTitle}">${video.cleanTitle}</span>
+          ${
+            noteCount > 0
+              ? `<span class="item-note-indicator" title="${noteCount} anotação${noteCount === 1 ? "" : "ões"}">
+                  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                  </svg>
+                  ${noteCount}
+                </span>`
+              : ""
+          }
         </div>
         <div class="item-right">
           ${isFav ? `<svg viewBox="0 0 24 24" width="14" height="14" fill="#f59e0b" stroke="#f59e0b"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg>` : ""}
@@ -2619,157 +2796,62 @@ function renderCurriculumTrack() {
       lessonsContainer.appendChild(item);
     });
 
-    el.curriculumTrackContainer.appendChild(card);
+    container.appendChild(card);
   });
 }
 
-// 7. ABA DE TODOS OS CURSOS (Exibindo todos os cursos e módulos como o usuário pediu)
-function renderAllCoursesView() {
-  const courses = state.coursesData?.courses || [];
-  el.allCoursesContainer.innerHTML = "";
+// 7. PÁGINA DO CURSO (detalhe do curso selecionado no seletor do topo)
+function findNextLessonForCourse(course) {
+  const allVideos = (course.modules || []).flatMap((m) => m.videos || []);
+  const inProgress = allVideos.find((v) => {
+    const p = state.progress.videos?.[v.id];
+    return p && p.currentTime > 0 && !p.completed;
+  });
+  if (inProgress) return inProgress;
+  return allVideos.find((v) => !state.progress.videos?.[v.id]?.completed) || allVideos[0];
+}
 
-  if (!courses.length) {
-    el.allCoursesContainer.innerHTML = `
-      <div style="padding:40px; text-align:center; color:var(--text-muted); background:var(--bg-card); border-radius:var(--radius-lg);">
-        <p style="font-size:16px; font-weight:600; margin-bottom:8px;">Nenhum curso encontrado</p>
-        <p style="font-size:13px;">Envie vídeos para o storage do Cloudflare R2 ou clique em Reescanear.</p>
-      </div>
-    `;
+function renderAllCoursesView() {
+  const course = state.currentCourse;
+  if (!el.courseDetailHeader) return;
+
+  if (!course) {
+    el.courseDetailHeader.style.display = "none";
+    if (el.courseDetailModulesContainer) {
+      el.courseDetailModulesContainer.innerHTML = `
+        <div class="empty-state-panel">
+          <h2>Nenhum curso encontrado</h2>
+          <p>Envie vídeos para o storage do Cloudflare R2 ou clique em Reescanear.</p>
+        </div>
+      `;
+    }
     return;
   }
+  el.courseDetailHeader.style.display = "";
 
-  courses.forEach((course, index) => {
-    const card = document.createElement("div");
-    card.className = "course-catalog-card stagger-in";
-    card.style.setProperty("--stagger-i", index);
-
-    const modules = course.modules || [];
-    let completedLessons = 0;
-    modules.forEach((m) => {
-      m.videos.forEach((v) => {
-        if (state.progress.videos?.[v.id]?.completed) completedLessons++;
-      });
-    });
-    const totalLessons = course.totalVideos || 0;
-    const coursePct =
-      totalLessons > 0
-        ? Math.round((completedLessons / totalLessons) * 100)
-        : 0;
-
-    card.innerHTML = `
-      <div class="course-catalog-header">
-        <div class="course-catalog-title-area">
-          <span class="course-catalog-tag">CURSO DISPONÍVEL</span>
-          <h2 class="course-catalog-title">${course.cleanTitle || course.title}</h2>
-        </div>
-        <div class="course-catalog-stats">
-          <div class="catalog-stat-pill">
-            <span class="catalog-stat-label">Módulos</span>
-            <span class="catalog-stat-val">${modules.length}</span>
-          </div>
-          <div class="catalog-stat-pill">
-            <span class="catalog-stat-label">Aulas</span>
-            <span class="catalog-stat-val">${completedLessons}/${totalLessons}</span>
-          </div>
-          <div class="catalog-stat-pill">
-            <span class="catalog-stat-label">Concluído</span>
-            <span class="catalog-stat-val" style="color:var(--accent-primary);">${coursePct}%</span>
-          </div>
-          <button class="btn btn-primary btn-sm btn-select-course">
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
-              <polygon points="5 3 19 12 5 21 5 3"></polygon>
-            </svg>
-            <span>Acessar Curso</span>
-          </button>
-        </div>
-      </div>
-
-      <div style="margin-bottom:14px;">
-        <h3 style="font-size:16px; font-weight:700; color:var(--text-secondary);">Módulos do Curso:</h3>
-      </div>
-
-      <div class="module-catalog-grid"></div>
-    `;
-
-    card.querySelector(".btn-select-course").onclick = () => {
-      state.currentCourse = course;
-      renderAll();
-      switchView("viewHome");
-      showToast(`Curso selecionado: ${course.cleanTitle}`, "info");
-    };
-
-    const modulesGrid = card.querySelector(".module-catalog-grid");
-    modules.forEach((mod, mIdx) => {
-      const modCard = document.createElement("div");
-      modCard.className = "module-catalog-card";
-
-      let modComp = 0;
-      mod.videos.forEach((v) => {
-        if (state.progress.videos?.[v.id]?.completed) modComp++;
-      });
-      const modTotal = mod.videos.length;
-      const modPct = modTotal > 0 ? Math.round((modComp / modTotal) * 100) : 0;
-
-      let lessonsHTML = "";
-      mod.videos.forEach((v, vIdx) => {
-        const isComp = !!state.progress.videos?.[v.id]?.completed;
-        lessonsHTML += `
-          <div class="lesson-preview-item" data-videoid="${v.id}">
-            <span>${vIdx + 1}. ${v.cleanTitle}</span>
-            <span style="font-size:11px; font-weight:700; color:${isComp ? "var(--accent-success)" : "var(--text-muted)"}; flex-shrink:0; margin-left:8px;">
-              ${isComp ? "✓ Concluída" : "Assistir"}
-            </span>
-          </div>
-        `;
-      });
-
-      modCard.innerHTML = `
-        <div class="module-card-top">
-          <span class="module-number-pill">MÓDULO ${mIdx + 1}</span>
-          <span style="font-size:12px; font-weight:600; color:var(--text-secondary);">${modComp}/${modTotal} aulas</span>
-        </div>
-        <h3 class="module-catalog-name">${mod.cleanTitle}</h3>
-        
-        <div class="module-catalog-progress">
-          <div class="module-progress-bar-wide">
-            <div style="height:100%; width:${modPct}%; background:var(--accent-success); border-radius:4px;"></div>
-          </div>
-          <span style="font-size:11px; font-weight:700; color:var(--text-muted);">${modPct}%</span>
-        </div>
-
-        <div class="module-lessons-preview-list">
-          ${lessonsHTML}
-        </div>
-
-        <button class="btn btn-secondary btn-sm module-card-btn">
-          <span>Abrir Módulo (${mod.videos.length} aulas)</span>
-        </button>
-      `;
-
-      modCard.querySelectorAll(".lesson-preview-item").forEach((lItem) => {
-        lItem.onclick = () => {
-          const vId = lItem.dataset.videoid;
-          const targetV = mod.videos.find((v) => v.id === vId);
-          if (targetV) {
-            state.currentCourse = course;
-            playVideo(targetV);
-          }
-        };
-      });
-
-      modCard.querySelector(".module-card-btn").onclick = () => {
-        state.currentCourse = course;
-        const targetV =
-          mod.videos.find((v) => !state.progress.videos?.[v.id]?.completed) ||
-          mod.videos[0];
-        if (targetV) playVideo(targetV);
-      };
-
-      modulesGrid.appendChild(modCard);
-    });
-
-    el.allCoursesContainer.appendChild(card);
+  const modules = course.modules || [];
+  const allVideos = modules.flatMap((m) => m.videos || []);
+  let completedLessons = 0;
+  allVideos.forEach((v) => {
+    if (state.progress.videos?.[v.id]?.completed) completedLessons++;
   });
+  const totalLessons = course.totalVideos || 0;
+  const coursePct =
+    totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0;
+
+  el.courseDetailThumbImg.src = allVideos[0]?.thumbUrl || "";
+  el.courseDetailThumbImg.alt = course.cleanTitle || course.title;
+  el.courseDetailTitle.textContent = course.cleanTitle || course.title;
+  el.courseDetailDesc.textContent = `${modules.length} módulo${modules.length === 1 ? "" : "s"} · ${totalLessons} aula${totalLessons === 1 ? "" : "s"}`;
+  el.courseDetailProgressFill.style.width = `${coursePct}%`;
+  el.courseDetailProgressLabel.textContent = `${completedLessons}/${totalLessons} aulas · ${coursePct}% concluído`;
+
+  el.btnCourseDetailContinue.onclick = () => {
+    const target = findNextLessonForCourse(course);
+    if (target) playVideo(target);
+  };
+
+  renderCurriculumTrack(el.courseDetailModulesContainer);
 }
 
 // 8. Player Details & Sidebar
@@ -2978,21 +3060,43 @@ function buildOrphanNoteVideo(vId) {
   };
 }
 
+function notesEmptyStateHTML(title, message) {
+  return `
+    <div class="empty-state-panel">
+      <div class="empty-state-icon">
+        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+          <polyline points="14 2 14 8 20 8"></polyline>
+          <line x1="9" y1="15" x2="15" y2="15"></line>
+          <line x1="9" y1="11" x2="15" y2="11"></line>
+        </svg>
+      </div>
+      <h2>${title}</h2>
+      <p>${message}</p>
+    </div>
+  `;
+}
+
 function renderAllNotesView() {
-  const allVideos = getAllCurrentCourseVideos();
+  // Cursos completos, não só o selecionado no momento: uma anotação pode
+  // pertencer a qualquer curso e precisa aparecer aqui de qualquer forma.
+  const courses = state.coursesData?.courses || [];
+  const allVideos = courses.flatMap((c) =>
+    (c.modules || []).flatMap((m) => m.videos || []),
+  );
   const videoMap = new Map();
   allVideos.forEach((v) => videoMap.set(v.id, v));
 
   el.globalNotesContainer.innerHTML = "";
   if (!state.notes.length) {
-    el.globalNotesContainer.innerHTML = `
-      <div style="padding:40px; text-align:center; color:var(--text-muted); background:var(--bg-card); border-radius:var(--radius-lg);">
-        <p style="font-size:16px; font-weight:600; margin-bottom:8px;">Nenhuma anotação registrada ainda</p>
-        <p style="font-size:13px;">Durante a reprodução de qualquer aula, adicione anotações vinculadas ao minuto exato do vídeo.</p>
-      </div>
-    `;
+    el.globalNotesContainer.innerHTML = notesEmptyStateHTML(
+      "Nenhuma anotação registrada ainda",
+      "Durante a reprodução de qualquer aula, adicione anotações vinculadas ao minuto exato do vídeo.",
+    );
     return;
   }
+
+  const query = (el.notesSearchInput?.value || "").toLowerCase().trim();
 
   const grouped = {};
   state.notes.forEach((note) => {
@@ -3000,15 +3104,30 @@ function renderAllNotesView() {
     grouped[note.videoId].push(note);
   });
 
+  let groupsRendered = 0;
+
   for (const [vId, vNotes] of Object.entries(grouped)) {
     const video = videoMap.get(vId) || buildOrphanNoteVideo(vId);
+
+    const matchedNotes = query
+      ? vNotes.filter(
+          (note) =>
+            note.text.toLowerCase().includes(query) ||
+            video.cleanTitle.toLowerCase().includes(query) ||
+            video.cleanCourse.toLowerCase().includes(query) ||
+            video.cleanModule.toLowerCase().includes(query),
+        )
+      : vNotes;
+    if (!matchedNotes.length) continue;
+
+    groupsRendered++;
     const groupEl = document.createElement("div");
     groupEl.className = "course-notes-group";
     groupEl.innerHTML = `
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+      <div class="course-notes-group-header">
         <div>
-          <span style="font-size:11px; font-weight:700; color:var(--accent-secondary); text-transform:uppercase;">${video.cleanCourse} • ${video.cleanModule}</span>
-          <h3 class="course-notes-title" style="margin:4px 0 0 0; border:none; padding:0;">${video.cleanTitle}</h3>
+          <span class="course-notes-context">${video.cleanCourse} • ${video.cleanModule}</span>
+          <h3 class="course-notes-title">${video.cleanTitle}</h3>
         </div>
         <button class="btn btn-secondary btn-sm btn-open-lesson">Assistir Aula ▶</button>
       </div>
@@ -3016,11 +3135,11 @@ function renderAllNotesView() {
     `;
 
     groupEl.querySelector(".btn-open-lesson").onclick = () => {
-      playVideo(video);
+      playVideoFromAnyCourse(video);
     };
 
     const nList = groupEl.querySelector(".notes-list");
-    vNotes
+    matchedNotes
       .sort((a, b) => a.timestamp - b.timestamp)
       .forEach((note) => {
         const item = document.createElement("div");
@@ -3049,7 +3168,7 @@ function renderAllNotesView() {
       `;
 
         item.querySelector(".note-timestamp-btn").onclick = () => {
-          playVideo(video, note.timestamp);
+          playVideoFromAnyCourse(video, note.timestamp);
         };
 
         attachNoteItemActions(item, note, () => renderAllNotesView());
@@ -3059,27 +3178,202 @@ function renderAllNotesView() {
 
     el.globalNotesContainer.appendChild(groupEl);
   }
+
+  if (!groupsRendered) {
+    el.globalNotesContainer.innerHTML = notesEmptyStateHTML(
+      "Nenhuma anotação encontrada",
+      "Tente buscar por outro termo, curso ou aula.",
+    );
+  }
 }
 
 // 11. Favorites View
+function favoritesEmptyStateHTML(message) {
+  return `
+    <div class="empty-state-panel" style="grid-column: 1 / -1;">
+      <div class="empty-state-icon">
+        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
+        </svg>
+      </div>
+      <h2>Nenhum favorito ainda</h2>
+      <p>${message}</p>
+    </div>
+  `;
+}
+
 function renderFavoritesView() {
-  const allVideos = getAllCurrentCourseVideos();
+  const courses = state.coursesData?.courses || [];
+  const allVideos = courses.flatMap((c) =>
+    (c.modules || []).flatMap((m) => m.videos || []),
+  );
   const favVideos = allVideos.filter((v) => state.favorites.includes(v.id));
 
+  el.favoritesTabs
+    ?.querySelectorAll(".work-tab")
+    .forEach((tab) =>
+      tab.classList.toggle(
+        "active",
+        tab.dataset.favSection === state.favoritesSection,
+      ),
+    );
+
+  el.favoritesVideosGrid.hidden = state.favoritesSection !== "lessons";
+  el.favoritesByCourseContainer.hidden = state.favoritesSection !== "courses";
+  el.favoritesNotesList.hidden = state.favoritesSection !== "notes";
+
+  if (state.favoritesSection === "courses") {
+    if (!favVideos.length) {
+      el.favoritesByCourseContainer.innerHTML = favoritesEmptyStateHTML(
+        "Salve aulas que você quer revisar depois — elas aparecem aqui agrupadas por curso.",
+      );
+      return;
+    }
+    el.favoritesByCourseContainer.innerHTML = "";
+    courses.forEach((course) => {
+      const courseVideos = (course.modules || [])
+        .flatMap((m) => m.videos || [])
+        .filter((v) => state.favorites.includes(v.id));
+      if (!courseVideos.length) return;
+      const section = document.createElement("div");
+      section.className = "section-shelf";
+      section.innerHTML = `
+        <div class="shelf-header">
+          <div class="shelf-title-box">
+            <h2 class="shelf-title">${escapeHTML(course.cleanTitle || course.title)}</h2>
+            <span class="shelf-count-badge">${courseVideos.length}</span>
+          </div>
+        </div>
+        <div class="videos-grid"></div>
+      `;
+      const grid = section.querySelector(".videos-grid");
+      courseVideos.forEach((v) => grid.appendChild(createVideoCardElement(v)));
+      el.favoritesByCourseContainer.appendChild(section);
+    });
+    return;
+  }
+
+  if (state.favoritesSection === "notes") {
+    const favNotes = state.notes.filter((n) =>
+      state.favorites.includes(n.videoId),
+    );
+    if (!favNotes.length) {
+      el.favoritesNotesList.innerHTML = favoritesEmptyStateHTML(
+        "Anotações feitas em aulas favoritadas aparecem aqui.",
+      );
+      return;
+    }
+    el.favoritesNotesList.innerHTML = favNotes
+      .map((note) => {
+        const video = findVideoById(note.videoId);
+        return `
+        <button class="history-row" data-note-id="${escapeHTML(note.id)}">
+          <div class="history-row-body">
+            <span class="history-row-breadcrumb">${escapeHTML(video?.cleanTitle || "Aula")}</span>
+            <h3 class="history-row-title">${escapeHTML(note.text.slice(0, 100))}</h3>
+          </div>
+          <div class="history-row-meta">
+            <span class="history-row-time">${note.timestampFormatted || formatTime(note.timestamp)}</span>
+          </div>
+        </button>
+      `;
+      })
+      .join("");
+    el.favoritesNotesList.querySelectorAll("[data-note-id]").forEach((row) => {
+      row.addEventListener("click", () => {
+        const note = favNotes.find((n) => n.id === row.dataset.noteId);
+        const video = note && findVideoById(note.videoId);
+        if (video) playVideoFromAnyCourse(video, note.timestamp);
+      });
+    });
+    return;
+  }
+
+  // state.favoritesSection === "lessons"
   el.favoritesVideosGrid.innerHTML = "";
   if (!favVideos.length) {
-    el.favoritesVideosGrid.innerHTML = `
-      <div style="grid-column: 1 / -1; padding: 40px; text-align: center; color: var(--text-muted); background: var(--bg-card); border-radius: var(--radius-lg);">
-        <p style="font-size: 16px; font-weight: 600; margin-bottom: 8px;">Nenhuma aula favoritada ainda</p>
-        <p style="font-size: 13px;">Clique no ícone de estrela nas aulas para salvá-las aqui e encontrá-las rapidamente.</p>
+    el.favoritesVideosGrid.innerHTML = favoritesEmptyStateHTML(
+      "Clique no ícone de estrela nas aulas para salvá-las aqui e encontrá-las rapidamente.",
+    );
+    return;
+  }
+  favVideos.forEach((v) => {
+    el.favoritesVideosGrid.appendChild(createVideoCardElement(v));
+  });
+}
+
+function formatRelativeTime(isoString) {
+  const then = new Date(isoString).getTime();
+  if (Number.isNaN(then)) return "";
+  const diffMs = Date.now() - then;
+  const diffMin = Math.round(diffMs / 60000);
+  if (diffMin < 1) return "agora mesmo";
+  if (diffMin < 60) return `há ${diffMin} min`;
+  const diffHours = Math.round(diffMin / 60);
+  if (diffHours < 24) return `há ${diffHours}h`;
+  const diffDays = Math.round(diffHours / 24);
+  if (diffDays === 1) return "ontem";
+  if (diffDays < 7) return `há ${diffDays} dias`;
+  const diffWeeks = Math.round(diffDays / 7);
+  if (diffWeeks < 5) return `há ${diffWeeks} semana${diffWeeks > 1 ? "s" : ""}`;
+  return new Date(isoString).toLocaleDateString("pt-BR");
+}
+
+function renderHistoryView() {
+  if (!el.historyList) return;
+  const allVideos = getAllCurrentCourseVideos();
+  const watched = allVideos
+    .map((v) => ({ video: v, p: state.progress.videos?.[v.id] }))
+    .filter((entry) => entry.p && entry.p.lastWatchedAt)
+    .sort(
+      (a, b) => new Date(b.p.lastWatchedAt) - new Date(a.p.lastWatchedAt),
+    );
+
+  if (!watched.length) {
+    el.historyList.innerHTML = `
+      <div class="empty-state-panel">
+        <div class="empty-state-icon">
+          <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="9"></circle>
+            <polyline points="12 7 12 12 15.5 14"></polyline>
+          </svg>
+        </div>
+        <h2>Seu histórico ainda está vazio</h2>
+        <p>As aulas que você assistir vão aparecer aqui, da mais recente para a mais antiga.</p>
       </div>
     `;
     return;
   }
 
-  favVideos.forEach((v) => {
-    const card = createVideoCardElement(v);
-    el.favoritesVideosGrid.appendChild(card);
+  el.historyList.innerHTML = watched
+    .map(({ video, p }) => {
+      const isCompleted = !!p.completed;
+      return `
+      <button class="history-row" data-history-id="${escapeHTML(video.id)}">
+        <div class="history-row-thumb">
+          <img src="${video.thumbUrl}" alt="${escapeHTML(video.cleanTitle)}" loading="lazy" />
+        </div>
+        <div class="history-row-body">
+          <span class="history-row-breadcrumb">${escapeHTML(video.cleanCourse)} · ${escapeHTML(video.cleanModule)}</span>
+          <h3 class="history-row-title">${escapeHTML(video.cleanTitle)}</h3>
+          <div class="history-row-progress-track">
+            <div class="history-row-progress-fill" style="width: ${isCompleted ? 100 : p.percentage || 0}%"></div>
+          </div>
+        </div>
+        <div class="history-row-meta">
+          <span class="history-row-status">${isCompleted ? "✓ Concluída" : `${p.percentage || 0}%`}</span>
+          <span class="history-row-time">${formatRelativeTime(p.lastWatchedAt)}</span>
+        </div>
+      </button>
+    `;
+    })
+    .join("");
+
+  el.historyList.querySelectorAll("[data-history-id]").forEach((row) => {
+    row.addEventListener("click", () => {
+      const entry = watched.find((w) => w.video.id === row.dataset.historyId);
+      if (entry) playVideo(entry.video);
+    });
   });
 }
 
@@ -3228,9 +3522,9 @@ function playPrevLesson() {
 function switchView(viewId) {
   el.navBtnHome.classList.toggle("active", viewId === "viewHome");
   el.navBtnCourses.classList.toggle("active", viewId === "viewCourses");
-  el.navBtnPlayer.classList.toggle("active", viewId === "viewPlayer");
   el.navBtnNotes.classList.toggle("active", viewId === "viewNotes");
   el.navBtnFavorites.classList.toggle("active", viewId === "viewFavorites");
+  el.navBtnHistory.classList.toggle("active", viewId === "viewHistory");
   el.navBtnWork.classList.toggle("active", viewId === "viewWork");
 
   [
@@ -3239,6 +3533,7 @@ function switchView(viewId) {
     el.viewPlayer,
     el.viewNotes,
     el.viewFavorites,
+    el.viewHistory,
     el.viewWork,
   ].forEach((v) => {
     v.classList.toggle("active", v.id === viewId);
@@ -3250,8 +3545,15 @@ function switchView(viewId) {
     renderAllNotesView();
   } else if (viewId === "viewFavorites") {
     renderFavoritesView();
+  } else if (viewId === "viewHistory") {
+    renderHistoryView();
   } else if (viewId === "viewHome") {
+    renderHomeGreeting();
     renderHomeHero();
+    renderStatsGrid();
+    renderMyCoursesGrid();
+    renderHomeRecentRail();
+    renderHomeFavoritesRail();
     renderHomeVideosGrid();
     renderHomeTopics();
     renderCurriculumTrack();
@@ -3259,6 +3561,202 @@ function switchView(viewId) {
     renderAllCoursesView();
   } else if (viewId === "viewWork") {
     renderWorkView();
+  }
+}
+
+// --------------------------------------------------------------------------
+// COMMAND PALETTE (Ctrl/Cmd + K) — busca global com resultados agrupados
+// --------------------------------------------------------------------------
+
+function findVideoById(videoId) {
+  const courses = state.coursesData?.courses || [];
+  for (const course of courses) {
+    for (const mod of course.modules || []) {
+      const found = (mod.videos || []).find((v) => v.id === videoId);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+
+function findCourseByVideoId(videoId) {
+  const courses = state.coursesData?.courses || [];
+  return courses.find((course) =>
+    (course.modules || []).some((m) =>
+      (m.videos || []).some((v) => v.id === videoId),
+    ),
+  );
+}
+
+// Garante que o curso selecionado no topo/sidebar acompanhe a aula que vai
+// tocar, mesmo quando ela vem de outro curso (ex.: resultado da busca).
+function playVideoFromAnyCourse(video, startTime = null) {
+  const course = findCourseByVideoId(video.id);
+  if (course && course.id !== state.currentCourse?.id) {
+    state.currentCourse = course;
+    renderCourseDropdown();
+    updateHeaderProgress();
+  }
+  playVideo(video, startTime);
+}
+
+function getCommandPaletteResults(query) {
+  const q = query.trim().toLowerCase();
+  const courses = state.coursesData?.courses || [];
+  const allVideos = courses.flatMap((c) =>
+    (c.modules || []).flatMap((m) => m.videos || []),
+  );
+
+  if (!q) {
+    const recent = courses
+      .flatMap((c) => watchedEntriesForCourse(c))
+      .sort((a, b) => new Date(b.p.lastWatchedAt) - new Date(a.p.lastWatchedAt))
+      .slice(0, 5)
+      .map((e) => e.video);
+    const favorites = allVideos
+      .filter((v) => state.favorites.includes(v.id))
+      .slice(0, 5);
+    return { courses: [], videos: recent, notes: [], favorites, isDefault: true };
+  }
+
+  const courseMatches = courses
+    .filter((c) => (c.cleanTitle || c.title || "").toLowerCase().includes(q))
+    .slice(0, 5);
+  const videoMatches = allVideos
+    .filter(
+      (v) =>
+        v.cleanTitle.toLowerCase().includes(q) ||
+        v.cleanModule.toLowerCase().includes(q),
+    )
+    .slice(0, 6);
+  const noteMatches = state.notes
+    .filter((n) => n.text.toLowerCase().includes(q))
+    .slice(0, 5);
+  const favMatches = allVideos
+    .filter(
+      (v) => state.favorites.includes(v.id) && v.cleanTitle.toLowerCase().includes(q),
+    )
+    .slice(0, 5);
+
+  return {
+    courses: courseMatches,
+    videos: videoMatches,
+    notes: noteMatches,
+    favorites: favMatches,
+    isDefault: false,
+  };
+}
+
+function openCommandPalette() {
+  el.commandPaletteBackdrop.classList.add("open");
+  el.commandPaletteInput.value = "";
+  renderCommandPaletteResults("");
+  setTimeout(() => el.commandPaletteInput.focus(), 30);
+}
+
+function closeCommandPalette() {
+  el.commandPaletteBackdrop.classList.remove("open");
+}
+
+function commandPaletteIcon(type) {
+  const icons = {
+    course: '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>',
+    video: '<svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>',
+    note: '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>',
+    favorite: '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg>',
+  };
+  return icons[type] || icons.video;
+}
+
+function renderCommandPaletteResults(query) {
+  const { courses, videos, notes, favorites, isDefault } =
+    getCommandPaletteResults(query);
+  const groups = [
+    { label: isDefault ? "Recentes" : "Aulas", type: "video", items: videos },
+    { label: "Cursos", type: "course", items: courses },
+    { label: "Anotações", type: "note", items: notes },
+    { label: "Favoritos", type: "favorite", items: favorites },
+  ].filter((g) => g.items.length);
+
+  if (!groups.length) {
+    el.commandPaletteResults.innerHTML = `<div class="command-palette-empty">Nenhum resultado encontrado.</div>`;
+    return;
+  }
+
+  el.commandPaletteResults.innerHTML = groups
+    .map(
+      (group) => `
+      <div class="cp-group-label">${group.label}</div>
+      ${group.items
+        .map((item, idx) => {
+          if (group.type === "course") {
+            return `<button class="cp-result-item" data-type="course" data-idx="${idx}">
+              <span class="cp-result-icon">${commandPaletteIcon("course")}</span>
+              <span class="cp-result-body"><span class="cp-result-title">${escapeHTML(item.cleanTitle || item.title)}</span><span class="cp-result-meta">${item.totalVideos} aulas</span></span>
+            </button>`;
+          }
+          if (group.type === "note") {
+            const video = findVideoById(item.videoId);
+            return `<button class="cp-result-item" data-type="note" data-idx="${idx}">
+              <span class="cp-result-icon">${commandPaletteIcon("note")}</span>
+              <span class="cp-result-body"><span class="cp-result-title">${escapeHTML(item.text.slice(0, 70))}</span><span class="cp-result-meta">${escapeHTML(video?.cleanTitle || "Aula")}</span></span>
+              <span class="cp-result-timestamp">${item.timestampFormatted || formatTime(item.timestamp)}</span>
+            </button>`;
+          }
+          return `<button class="cp-result-item" data-type="${group.type}" data-idx="${idx}">
+            <span class="cp-result-icon">${commandPaletteIcon(group.type)}</span>
+            <span class="cp-result-body"><span class="cp-result-title">${escapeHTML(item.cleanTitle)}</span><span class="cp-result-meta">${escapeHTML(item.cleanCourse)} · ${escapeHTML(item.cleanModule)}</span></span>
+          </button>`;
+        })
+        .join("")}
+    `,
+    )
+    .join("");
+
+  const activate = (type, idx) => {
+    if (type === "course") {
+      const course = courses[idx];
+      closeCommandPalette();
+      if (course) selectCourse(course);
+    } else if (type === "note") {
+      const note = notes[idx];
+      const video = note && findVideoById(note.videoId);
+      closeCommandPalette();
+      if (video) playVideoFromAnyCourse(video, note.timestamp);
+    } else {
+      const video = (type === "favorite" ? favorites : videos)[idx];
+      closeCommandPalette();
+      if (video) playVideoFromAnyCourse(video);
+    }
+  };
+
+  el.commandPaletteResults.querySelectorAll(".cp-result-item").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      activate(btn.dataset.type, Number(btn.dataset.idx));
+    });
+  });
+
+  el.commandPaletteResults.querySelector(".cp-result-item")?.classList.add("selected");
+  el.commandPaletteResults._activate = activate;
+}
+
+function moveCommandPaletteSelection(delta) {
+  const items = Array.from(
+    el.commandPaletteResults.querySelectorAll(".cp-result-item"),
+  );
+  if (!items.length) return;
+  const currentIdx = items.findIndex((i) => i.classList.contains("selected"));
+  const nextIdx =
+    currentIdx === -1 ? 0 : (currentIdx + delta + items.length) % items.length;
+  items.forEach((i) => i.classList.remove("selected"));
+  items[nextIdx].classList.add("selected");
+  items[nextIdx].scrollIntoView({ block: "nearest" });
+}
+
+function activateCommandPaletteSelection() {
+  const selected = el.commandPaletteResults.querySelector(".cp-result-item.selected");
+  if (selected && el.commandPaletteResults._activate) {
+    el.commandPaletteResults._activate(selected.dataset.type, Number(selected.dataset.idx));
   }
 }
 
@@ -3271,11 +3769,11 @@ function initEventListeners() {
   el.btnLogoHome.addEventListener("click", () => switchView("viewHome"));
   el.navBtnHome.addEventListener("click", () => switchView("viewHome"));
   el.navBtnCourses.addEventListener("click", () => switchView("viewCourses"));
-  el.navBtnPlayer.addEventListener("click", () => switchView("viewPlayer"));
   el.navBtnNotes.addEventListener("click", () => switchView("viewNotes"));
   el.navBtnFavorites.addEventListener("click", () =>
     switchView("viewFavorites"),
   );
+  el.navBtnHistory.addEventListener("click", () => switchView("viewHistory"));
   el.navBtnWork.addEventListener("click", () => switchView("viewWork"));
   el.btnBackToHome.addEventListener("click", () => switchView("viewHome"));
   el.btnNewClient.addEventListener("click", () => openClientEditor());
@@ -3297,6 +3795,13 @@ function initEventListeners() {
     state.workSection = tab.dataset.workSection;
     renderWorkView();
     if (state.workSection === "reports") refreshMetaConnectionStatus();
+  });
+
+  el.favoritesTabs?.addEventListener("click", (event) => {
+    const tab = event.target.closest(".work-tab");
+    if (!tab) return;
+    state.favoritesSection = tab.dataset.favSection;
+    renderFavoritesView();
   });
   el.documentClientFilter.addEventListener("change", renderWorkDocuments);
   el.documentSearch.addEventListener("input", renderWorkDocuments);
@@ -3744,6 +4249,10 @@ function initEventListeners() {
     window.location.href = "/api/notes/export";
   });
 
+  el.notesSearchInput?.addEventListener("input", () => {
+    renderAllNotesView();
+  });
+
   // Sidebar Search
   el.sidebarSearchInput.addEventListener("input", () => {
     renderPlayerSidebar();
@@ -3778,6 +4287,33 @@ function initEventListeners() {
   });
   el.btnConfirmCloseSettings.addEventListener("click", () => {
     el.modalSettingsBackdrop.classList.remove("open");
+  });
+
+  // Command Palette
+  el.btnMobileSearch?.addEventListener("click", () => openCommandPalette());
+  el.commandPaletteBackdrop.addEventListener("click", (e) => {
+    if (e.target === el.commandPaletteBackdrop) closeCommandPalette();
+  });
+  let paletteDebounce = null;
+  el.commandPaletteInput.addEventListener("input", (e) => {
+    clearTimeout(paletteDebounce);
+    const value = e.target.value;
+    paletteDebounce = setTimeout(() => renderCommandPaletteResults(value), 120);
+  });
+  el.commandPaletteInput.addEventListener("keydown", (e) => {
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      moveCommandPaletteSelection(1);
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      moveCommandPaletteSelection(-1);
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      activateCommandPaletteSelection();
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      closeCommandPalette();
+    }
   });
 
   el.btnCfgSwitchAccount?.addEventListener("click", handleSwitchAccount);
@@ -3856,14 +4392,14 @@ function initEventListeners() {
 
   // Global Keyboard Shortcuts
   window.addEventListener("keydown", (e) => {
-    if (["INPUT", "TEXTAREA"].includes(document.activeElement.tagName)) {
-      if (e.key === "Escape") document.activeElement.blur();
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+      e.preventDefault();
+      openCommandPalette();
       return;
     }
 
-    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
-      e.preventDefault();
-      el.globalSearchInput.focus();
+    if (["INPUT", "TEXTAREA"].includes(document.activeElement.tagName)) {
+      if (e.key === "Escape") document.activeElement.blur();
       return;
     }
 
