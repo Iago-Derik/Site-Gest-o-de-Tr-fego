@@ -432,6 +432,7 @@ const el = {
 
   // All Notes & Favorites Views
   globalNotesContainer: document.getElementById("globalNotesContainer"),
+  notesSearchInput: document.getElementById("notesSearchInput"),
   btnExportAllNotes: document.getElementById("btnExportAllNotes"),
   favoritesVideosGrid: document.getElementById("favoritesVideosGrid"),
   favoritesTabs: document.getElementById("favoritesTabs"),
@@ -3058,21 +3059,43 @@ function buildOrphanNoteVideo(vId) {
   };
 }
 
+function notesEmptyStateHTML(title, message) {
+  return `
+    <div class="empty-state-panel">
+      <div class="empty-state-icon">
+        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+          <polyline points="14 2 14 8 20 8"></polyline>
+          <line x1="9" y1="15" x2="15" y2="15"></line>
+          <line x1="9" y1="11" x2="15" y2="11"></line>
+        </svg>
+      </div>
+      <h2>${title}</h2>
+      <p>${message}</p>
+    </div>
+  `;
+}
+
 function renderAllNotesView() {
-  const allVideos = getAllCurrentCourseVideos();
+  // Cursos completos, não só o selecionado no momento: uma anotação pode
+  // pertencer a qualquer curso e precisa aparecer aqui de qualquer forma.
+  const courses = state.coursesData?.courses || [];
+  const allVideos = courses.flatMap((c) =>
+    (c.modules || []).flatMap((m) => m.videos || []),
+  );
   const videoMap = new Map();
   allVideos.forEach((v) => videoMap.set(v.id, v));
 
   el.globalNotesContainer.innerHTML = "";
   if (!state.notes.length) {
-    el.globalNotesContainer.innerHTML = `
-      <div style="padding:40px; text-align:center; color:var(--text-muted); background:var(--bg-card); border-radius:var(--radius-lg);">
-        <p style="font-size:16px; font-weight:600; margin-bottom:8px;">Nenhuma anotação registrada ainda</p>
-        <p style="font-size:13px;">Durante a reprodução de qualquer aula, adicione anotações vinculadas ao minuto exato do vídeo.</p>
-      </div>
-    `;
+    el.globalNotesContainer.innerHTML = notesEmptyStateHTML(
+      "Nenhuma anotação registrada ainda",
+      "Durante a reprodução de qualquer aula, adicione anotações vinculadas ao minuto exato do vídeo.",
+    );
     return;
   }
+
+  const query = (el.notesSearchInput?.value || "").toLowerCase().trim();
 
   const grouped = {};
   state.notes.forEach((note) => {
@@ -3080,15 +3103,30 @@ function renderAllNotesView() {
     grouped[note.videoId].push(note);
   });
 
+  let groupsRendered = 0;
+
   for (const [vId, vNotes] of Object.entries(grouped)) {
     const video = videoMap.get(vId) || buildOrphanNoteVideo(vId);
+
+    const matchedNotes = query
+      ? vNotes.filter(
+          (note) =>
+            note.text.toLowerCase().includes(query) ||
+            video.cleanTitle.toLowerCase().includes(query) ||
+            video.cleanCourse.toLowerCase().includes(query) ||
+            video.cleanModule.toLowerCase().includes(query),
+        )
+      : vNotes;
+    if (!matchedNotes.length) continue;
+
+    groupsRendered++;
     const groupEl = document.createElement("div");
     groupEl.className = "course-notes-group";
     groupEl.innerHTML = `
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+      <div class="course-notes-group-header">
         <div>
-          <span style="font-size:11px; font-weight:700; color:var(--accent-secondary); text-transform:uppercase;">${video.cleanCourse} • ${video.cleanModule}</span>
-          <h3 class="course-notes-title" style="margin:4px 0 0 0; border:none; padding:0;">${video.cleanTitle}</h3>
+          <span class="course-notes-context">${video.cleanCourse} • ${video.cleanModule}</span>
+          <h3 class="course-notes-title">${video.cleanTitle}</h3>
         </div>
         <button class="btn btn-secondary btn-sm btn-open-lesson">Assistir Aula ▶</button>
       </div>
@@ -3096,11 +3134,11 @@ function renderAllNotesView() {
     `;
 
     groupEl.querySelector(".btn-open-lesson").onclick = () => {
-      playVideo(video);
+      playVideoFromAnyCourse(video);
     };
 
     const nList = groupEl.querySelector(".notes-list");
-    vNotes
+    matchedNotes
       .sort((a, b) => a.timestamp - b.timestamp)
       .forEach((note) => {
         const item = document.createElement("div");
@@ -3129,7 +3167,7 @@ function renderAllNotesView() {
       `;
 
         item.querySelector(".note-timestamp-btn").onclick = () => {
-          playVideo(video, note.timestamp);
+          playVideoFromAnyCourse(video, note.timestamp);
         };
 
         attachNoteItemActions(item, note, () => renderAllNotesView());
@@ -3138,6 +3176,13 @@ function renderAllNotesView() {
       });
 
     el.globalNotesContainer.appendChild(groupEl);
+  }
+
+  if (!groupsRendered) {
+    el.globalNotesContainer.innerHTML = notesEmptyStateHTML(
+      "Nenhuma anotação encontrada",
+      "Tente buscar por outro termo, curso ou aula.",
+    );
   }
 }
 
@@ -4201,6 +4246,10 @@ function initEventListeners() {
 
   el.btnExportAllNotes.addEventListener("click", () => {
     window.location.href = "/api/notes/export";
+  });
+
+  el.notesSearchInput?.addEventListener("input", () => {
+    renderAllNotesView();
   });
 
   // Sidebar Search
