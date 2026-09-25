@@ -471,17 +471,19 @@ body {
   flex-shrink: 0;
   width: 38px;
   height: 38px;
-  background: linear-gradient(
-    135deg,
-    var(--accent-primary),
-    var(--accent-secondary)
-  );
+  background: var(--bg-elevated);
   border-radius: var(--radius-md);
+  overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
   color: #ffffff;
   box-shadow: 0 0 16px var(--accent-primary-glow);
+}
+.brand-icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .brand-pulse {
@@ -2074,6 +2076,22 @@ body {
   overflow: hidden;
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.7);
   user-select: none;
+  touch-action: manipulation;
+}
+
+/* Sem isto, o navegador (principalmente em celulares) resolve o tamanho do
+   container em tela cheia a partir do aspect-ratio travado (16/9) em vez do
+   viewport real — em retrato isso faz a largura calculada estourar bem além
+   da tela ("vídeo atravessa a tela"). Fixamos width/height no viewport e
+   soltamos o aspect-ratio só nesse estado. */
+.video-container:fullscreen,
+.video-container:-webkit-full-screen {
+  width: 100vw;
+  height: 100vh;
+  max-width: 100vw;
+  max-height: 100vh;
+  aspect-ratio: auto;
+  border-radius: 0;
 }
 
 .ambilight-canvas {
@@ -2105,6 +2123,67 @@ body {
   object-fit: contain;
   z-index: 1;
   background: #000000;
+}
+
+.video-click-surface {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+/* Feedback central (play/pause) e lateral (avançar/voltar 10s) ao tocar/
+   clicar no vídeo. */
+.video-action-feedback {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 6;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+.video-action-feedback.show {
+  opacity: 1;
+}
+.video-action-feedback.feedback-left {
+  left: 25%;
+}
+.video-action-feedback.feedback-right {
+  left: 75%;
+}
+.feedback-icon {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.6);
+  color: #ffffff;
+  animation: feedback-pop 0.35s ease;
+}
+.feedback-seek-label {
+  font-size: 11px;
+  font-weight: 700;
+}
+@keyframes feedback-pop {
+  0% {
+    transform: scale(0.6);
+    opacity: 0.5;
+  }
+  60% {
+    transform: scale(1.08);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
 }
 
 /* Preload Video Overlay */
@@ -2221,7 +2300,16 @@ body {
   transition: opacity 0.3s ease;
   pointer-events: none;
 }
-.video-container:hover .video-controls-overlay,
+/* :hover só decide a visibilidade em dispositivos que têm hover de verdade
+   (mouse). Em touch, o navegador às vezes "gruda" o :hover depois de um
+   toque e os controles nunca mais somem sozinhos — por isso em touch a
+   visibilidade fica 100% a cargo da classe .controls-visible (JS). */
+@media (hover: hover) and (pointer: fine) {
+  .video-container:hover .video-controls-overlay {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
 .video-container.controls-visible .video-controls-overlay {
   opacity: 1;
   pointer-events: auto;
