@@ -704,12 +704,68 @@ function showActionFeedback(isPlay) {
     ? `<svg viewBox="0 0 24 24" width="36" height="36" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>`
     : `<svg viewBox="0 0 24 24" width="36" height="36" fill="currentColor"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>`;
 
+  el.videoActionFeedback.classList.remove("feedback-left", "feedback-right");
   el.feedbackIcon.innerHTML = iconSvg;
   el.videoActionFeedback.classList.add("show");
   clearTimeout(el.feedbackTimeout);
   el.feedbackTimeout = setTimeout(() => {
     el.videoActionFeedback.classList.remove("show");
   }, 400);
+}
+
+// Avança/volta 10s ao dar duplo clique/toque nas laterais do vídeo (estilo
+// YouTube). Toques repetidos do mesmo lado dentro de uma janela curta
+// acumulam o valor mostrado no feedback (ex.: 10s, depois 20s, 30s...),
+// mas cada duplo toque sempre desloca exatamente 10s de verdade.
+let seekStreak = { side: null, total: 0, timer: null };
+function seekRelative(deltaSeconds, side) {
+  const video = el.mainVideoPlayer;
+  if (!video.duration) return;
+  video.currentTime = Math.min(
+    Math.max(0, video.currentTime + deltaSeconds),
+    video.duration,
+  );
+  seekStreak.total =
+    seekStreak.side === side ? seekStreak.total + Math.abs(deltaSeconds) : Math.abs(deltaSeconds);
+  seekStreak.side = side;
+  clearTimeout(seekStreak.timer);
+  seekStreak.timer = setTimeout(() => {
+    seekStreak = { side: null, total: 0, timer: null };
+  }, 700);
+  showSeekFeedback(side, seekStreak.total);
+  showPlayerControls();
+}
+
+// Controles (barra de progresso + botões) do player somem sozinhos depois
+// de um tempo curto sem interação, igual a maioria dos players de vídeo.
+// Em mouse o :hover do CSS já cobre isso; esta função é o que garante o
+// mesmo comportamento em touch (onde não existe :hover confiável) e também
+// reaparece os controles a cada toque/clique.
+let controlsHideTimer = null;
+function showPlayerControls() {
+  el.videoContainer.classList.add("controls-visible");
+  clearTimeout(controlsHideTimer);
+  if (!el.mainVideoPlayer.paused) {
+    controlsHideTimer = setTimeout(() => {
+      el.videoContainer.classList.remove("controls-visible");
+    }, 3000);
+  }
+}
+
+function showSeekFeedback(side, amountSeconds) {
+  const isLeft = side === "left";
+  const arrowSvg = isLeft
+    ? `<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="11 17 6 12 11 7"></polyline><polyline points="18 17 13 12 18 7"></polyline></svg>`
+    : `<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="13 17 18 12 13 7"></polyline><polyline points="6 17 11 12 6 7"></polyline></svg>`;
+
+  el.videoActionFeedback.classList.remove("feedback-left", "feedback-right");
+  el.videoActionFeedback.classList.add(isLeft ? "feedback-left" : "feedback-right");
+  el.feedbackIcon.innerHTML = `${arrowSvg}<span class="feedback-seek-label">${amountSeconds}s</span>`;
+  el.videoActionFeedback.classList.add("show");
+  clearTimeout(el.feedbackTimeout);
+  el.feedbackTimeout = setTimeout(() => {
+    el.videoActionFeedback.classList.remove("show");
+  }, 500);
 }
 
 // --------------------------------------------------------------------------
@@ -3909,18 +3965,41 @@ function initEventListeners() {
   // Video Events
   const video = el.mainVideoPlayer;
 
-  // DIRECT CLICK SURFACE FOR PLAY/PAUSE
+  // DIRECT CLICK SURFACE FOR PLAY/PAUSE — atrasado um pouco para dar tempo
+  // do navegador emitir "dblclick" em vez de dois cliques simples (senão um
+  // duplo toque/clique também dispararia o play/pause duas vezes de quebra).
+  let videoClickTimer = null;
   el.videoClickSurface.addEventListener("click", (e) => {
     e.preventDefault();
     e.stopPropagation();
-    togglePlayPause();
+    clearTimeout(videoClickTimer);
+    videoClickTimer = setTimeout(() => togglePlayPause(), 250);
   });
 
+  // Duplo clique/toque nos terços esquerdo e direito do vídeo = voltar/
+  // avançar 10s (igual YouTube); no terço central, alterna tela cheia.
   el.videoClickSurface.addEventListener("dblclick", (e) => {
     e.preventDefault();
     e.stopPropagation();
-    el.ctrlFullscreen.click();
+    clearTimeout(videoClickTimer);
+    const rect = el.videoClickSurface.getBoundingClientRect();
+    const ratio = rect.width ? (e.clientX - rect.left) / rect.width : 0.5;
+    if (ratio < 0.35) {
+      seekRelative(-10, "left");
+    } else if (ratio > 0.65) {
+      seekRelative(10, "right");
+    } else {
+      el.ctrlFullscreen.click();
+    }
   });
+
+  // Qualquer toque/clique dentro do player reaparece os controles (o clique
+  // no click-surface não borbulha até aqui porque ele mesmo chama
+  // stopPropagation, por isso é chamado direto nos dois handlers acima).
+  el.videoClickSurface.addEventListener("click", showPlayerControls);
+  el.videoClickSurface.addEventListener("dblclick", showPlayerControls);
+  el.videoContainer.addEventListener("click", showPlayerControls);
+  el.videoContainer.addEventListener("touchstart", showPlayerControls, { passive: true });
 
   // Ensure speed is maintained on EVERY playback event
   const ensurePlaybackSpeed = () => {
@@ -3939,6 +4018,7 @@ function initEventListeners() {
       requestAnimationFrame(updateAmbilight);
     }
     updateAmbientButton();
+    showPlayerControls();
   });
 
   video.addEventListener("playing", ensurePlaybackSpeed);
@@ -3954,6 +4034,7 @@ function initEventListeners() {
     if (state.currentVideo) {
       saveProgress(state.currentVideo.id, video.currentTime, video.duration);
     }
+    showPlayerControls();
   });
 
   // Throttled Progress Update & Time Display
