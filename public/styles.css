@@ -2022,17 +2022,24 @@ body {
    ========================================================================== */
 .player-layout {
   display: grid;
-  grid-template-columns: 1fr 360px;
+  /* minmax(0, 1fr) e não só "1fr": um item de grid, por padrão, não
+     encolhe além do min-content do que tem dentro. Um <video> real (com
+     dimensões próprias) ou um nome de curso/aula comprido no breadcrumb
+     bastam pra essa coluna nunca ficar mais estreita que esse conteúdo —
+     em telas pequenas isso empurra a página inteira pra largura maior que
+     a tela (o vídeo "atravessa a tela" e o resto fica cortado). */
+  grid-template-columns: minmax(0, 1fr) 360px;
   gap: 24px;
   align-items: start;
 }
 .player-layout.theater-mode {
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .player-main-column {
   display: flex;
   flex-direction: column;
+  min-width: 0;
 }
 
 .player-top-bar {
@@ -2051,9 +2058,18 @@ body {
   font-size: 13px;
   color: var(--text-secondary);
   font-weight: 500;
+  min-width: 0;
 }
 .bc-separator {
   color: var(--text-muted);
+  flex-shrink: 0;
+}
+.bc-course,
+.bc-module {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
 }
 .bc-module {
   color: var(--accent-secondary);
@@ -2077,6 +2093,10 @@ body {
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.7);
   user-select: none;
   touch-action: manipulation;
+  /* Some retângulo cinza que o Chrome/Android pinta ao tocar em qualquer
+     elemento clicável — sem isso, tocar no vídeo pra pausar/avançar/voltar
+     mostrava uma "caixa" piscando por cima. */
+  -webkit-tap-highlight-color: transparent;
 }
 
 /* Sem isto, o navegador (principalmente em celulares) resolve o tamanho do
@@ -2131,6 +2151,8 @@ body {
   z-index: 5;
   cursor: pointer;
   touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  outline: none;
 }
 
 /* Feedback central (play/pause) e lateral (avançar/voltar 10s) ao tocar/
@@ -2418,6 +2440,7 @@ body {
   cursor: pointer;
   border-radius: var(--radius-sm);
   transition: var(--transition-fast);
+  -webkit-tap-highlight-color: transparent;
 }
 .control-btn:hover {
   background: rgba(255, 255, 255, 0.12);
@@ -4304,7 +4327,7 @@ body {
     grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
   }
   .player-layout {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
   .player-sidebar {
     position: static;
@@ -4781,7 +4804,7 @@ body {
 
 /* Sidebar collapse toggle (curriculum sidebar in the player view) */
 .player-layout.sidebar-collapsed {
-  grid-template-columns: 1fr 60px;
+  grid-template-columns: minmax(0, 1fr) 60px;
   transition: grid-template-columns var(--transition-smooth);
 }
 .player-sidebar.collapsed {

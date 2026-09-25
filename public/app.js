@@ -3048,8 +3048,20 @@ function renderPlayerSidebar() {
       listCont.appendChild(item);
 
       if (isCurrent) {
+        // Rola só a lista de módulos (a barra lateral do player), nunca a
+        // página inteira — item.scrollIntoView() sobe por TODOS os
+        // ancestrais com scroll, incluindo a janela, e como essa barra
+        // lateral fica ABAIXO do vídeo no celular, isso jogava a página
+        // inteira pra baixo assim que uma aula começava a tocar.
         setTimeout(() => {
-          item.scrollIntoView({ behavior: "smooth", block: "nearest" });
+          const list = el.sidebarModulesList;
+          if (!list) return;
+          const listRect = list.getBoundingClientRect();
+          const itemRect = item.getBoundingClientRect();
+          if (itemRect.top < listRect.top || itemRect.bottom > listRect.bottom) {
+            list.scrollTop +=
+              itemRect.top - listRect.top - (listRect.height - itemRect.height) / 2;
+          }
         }, 100);
       }
     });
